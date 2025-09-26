@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "mongoose.h": "c",
+        "string.h": "c",
+        "inet.h": "c"
+    }
+}
