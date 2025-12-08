@@ -56,11 +56,6 @@ static void not_found(struct mg_connection *nc, struct mg_http_message *http_mes
     printf("hello\n");
 }
 
-static void handle_api_requests(struct mg_connection *nc, struct mg_http_message *http_message) {
-    mg_http_reply(nc, 200, "Content-Type: application/json\r\n",
-                 "{\"message\": \"API Route\"}");
-}
-
 // Structure pour retourner à la fois le résultat et un message d'erreur
 struct request_result {
     struct fetch_result result;
@@ -68,7 +63,7 @@ struct request_result {
 };
 
 // Routage et récupération de la réponse du serveur web
-static struct request_result request_to_webserver(char *base_url, struct mg_str *uri, struct mg_http_message **http_message) {
+static struct request_result request_to_server(char *base_url, struct mg_str *uri, struct mg_http_message **http_message) {
     struct request_result req_res = {0};
     struct mg_http_message *request = *http_message;
 
@@ -123,9 +118,9 @@ static struct request_result request_to_webserver(char *base_url, struct mg_str 
     return req_res;
 }
 
-static void reply(struct mg_connection *nc, int status, const char *content_type, const char *body) {
-    mg_http_reply(nc, status, content_type, "%s", body);
-}
+// static void reply(struct mg_connection *nc, int status, const char *content_type, const char *body) {
+//     mg_http_reply(nc, status, content_type, "%s", body);
+// }
 
 static void set_response_in_html_overlay(struct request_result *res) {
     if (res->result.body == NULL) {
@@ -198,10 +193,11 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
         struct mg_http_message *http_message = (struct mg_http_message *) ev_data;
         struct mg_str uri = http_message->uri;
         struct request_result response = {0};
+        char *target_server = NULL;
 
 
         // ( à enfermer plus tard dans une fonction de logging)
-        uint32_t ip = ntohl(*(uint32_t *) &nc->rem.ip);
+        // uint32_t ip = ntohl(*(uint32_t *) &nc->rem.ip);
         printf("new connexion :\n");
         printf("  url : %.*s\n", (int) uri.len, uri.buf);
         printf("  source ip : %d.%d.%d.%d\n", nc->rem.ip[0], nc->rem.ip[1], nc->rem.ip[2], nc->rem.ip[3]);
@@ -219,42 +215,36 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
             printf("  no body found\n");
         }
 
-        // Si la requête commence par /api, la rediriger vers le serveur API
-        if (mg_strcmp(uri, mg_str("/api")) == 0) {
-            response = request_to_webserver(api_server, &uri, &http_message);
-
-            if (response.error || !response.result.body) {
-                reply(nc, 500, "Content-Type: application/json\r\n", response.error);
-            } else if (response.result.body) {
-                reply(nc, 200, "Content-Type: application/json\r\n", response.result.body);
-            } else {
-                reply(nc, 500, "", "Upstream error");
-            }
-        } else {
+        // Si la requête ne commence pas par la route d'un service (donc est destiné au webserver), récupérer le cookie (pour le serveur)
+        if (!mg_strcmp(uri, mg_str("/api")) == 0) {
             get_cookie_value(http_message, "clio-lang", &language);
             if (language == NULL) {
                 language = "fr";
             }
+            target_server = web_server;
+        } else {
+            // TODO penser à adapter quand on aura plusieurs services
+            target_server = api_server;
+        }
 
-            // On passe : l'adresse du serveur web, l'URI de la requête et le message HTTP complet
-            response = request_to_webserver(web_server, &uri, &http_message);
-            // set_response_in_html_overlay(&response);
+        // On passe : l'adresse du serveur web, l'URI de la requête et le message HTTP complet
+        response = request_to_server(target_server, &uri, &http_message);
+        // set_response_in_html_overlay(&response);
 
-            if (response.error || !response.result.body) {
-                mg_http_reply(nc, 502, "", "Bad Gateway");
-                return;
-            }
+        if (response.error || !response.result.body) {
+            mg_http_reply(nc, 502, "", "Bad Gateway");
+            return;
+        }
 
-            if (response.result.body) {
-                // not_found(nc, http_message);
-                // On emballe la réponse dans le template HTML head bloc content
-                set_response_in_html_overlay(&response);
-                mg_http_reply(nc, 200, "Content-Type: text/html\r\n", "%s", response.result.body);
-                free(response.result.body);
-                return;
-            } else {
-                mg_http_reply(nc, 502, "", "Upstream error");
-            }
+        if (response.result.body) {
+            // not_found(nc, http_message);
+            // On emballe la réponse dans le template HTML head bloc content
+            set_response_in_html_overlay(&response);
+            mg_http_reply(nc, 200, "Content-Type: text/html\r\n", "%s", response.result.body);
+            free(response.result.body);
+            return;
+        } else {
+            mg_http_reply(nc, 502, "", "Upstream error");
         }
 
         // Si en définitive, la route n'existe pas, 404

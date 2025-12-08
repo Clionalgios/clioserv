@@ -14,10 +14,10 @@ struct route {
 
 
 // Définition des routes sous forme de tableau
-static const struct route routes[] = {
-    {"/"},
-    {NULL}
-};
+// static const struct route routes[] = {
+//     {"/"},
+//     {NULL}
+// };
 
 static const char *s_http_port = "127.0.0.1:8181";
 
@@ -29,7 +29,17 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
         char *response = NULL;
         char *language = NULL;
         char *media = NULL;
+        
         char *url = malloc(uri->len + 1);
+
+        // setting_favicon(/* sending variables nc, http_message, path and options to the function */);
+
+        // struct mg_http_serve_opts favicon_opts = {
+        //     .extra_headers = "Content-Type: image/x-icon\r\n"
+        // };
+        // const char *path = "./website_assets/favicon.ico";
+        // mg_http_serve_file(nc, http_message, path, &favicon_opts);
+
         if (url == NULL) {
             mg_http_reply(nc, 500, "Content-Type: text/plain\r\n", "Erreur interne du serveur");
             return;
@@ -40,7 +50,7 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
         get_cookie_value(http_message, "clio-lang", &language);
 
         // ( à enfermer plus tard dans une fonction de logging)
-        uint32_t ip = ntohl(*(uint32_t *) &nc->rem.ip);
+        // uint32_t ip = ntohl(*(uint32_t *) &nc->rem.ip); TODO supp
         printf("Langue demandée : %s\n", language ? language : "Aucune");
         printf("Nouvelle connexion :\n");
         // printf("  URI : %.*s\n", (int) uri.len, uri.buf);
@@ -69,7 +79,6 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
 
             return;
         }
-
 
         mg_http_reply(nc, 200, "Content-Type: text/html\r\n", response);
         free(response);
