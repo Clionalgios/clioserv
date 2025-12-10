@@ -1,10 +1,3 @@
-// #ifndef MONGOOSE_H
-// #define MONGOOSE_H
-// #include "mongoose.h"
-// #endif
-
-
-
 #ifndef UTILS_H
 #define UTILS_H
 #include <stdio.h>

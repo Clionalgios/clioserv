@@ -1,8 +1,15 @@
 #include "../../common/dependencies/mongoose/mongoose.h"
 #include "../../common/src/utils/utils.h"
+#include "../../common/src/prompts/prompts.h"
 #include "html_renderer.h"
 #include <stdio.h>
 #include <string.h>
+
+#define CLEAR_SCREEN "\x1B[2J\x1B[H"
+#define RED  "\x1B[31m"
+#define RESET  "\x1B[0m"
+#define STYLE_BOLD  "\x1B[1m"
+
 
 static struct mg_mgr mgr;
 
@@ -29,7 +36,7 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
         char *response = NULL;
         char *language = NULL;
         char *media = NULL;
-        
+
         char *url = malloc(uri->len + 1);
 
         // setting_favicon(/* sending variables nc, http_message, path and options to the function */);
@@ -85,23 +92,72 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
     }
 }
 
+int run_server(void) {
+    mg_mgr_init(&mgr); /* Initialize Mongoose event manager */
+
+    struct mg_connection *nc =
+        mg_http_listen(&mgr, s_http_port, ev_handler, NULL);
+
+    if (!nc)
+        return 1;
+
+    ok_prompt("Listening on %s", s_http_port);
+
+    for (;;)
+        mg_mgr_poll(&mgr, 1000);
+
+    mg_mgr_free(&mgr);
+    return 0;
+}
+
+// TODO: placer la présente fonction dans un futur fichier init.c
+int ensure_assets_directory(void) {
+    struct stat st;
+
+    if (stat("./website_assets", &st) != 0) {
+        error_prompt("folder \"./website_assets/\" not found");
+        info_prompt("you may not be in the right folder (by default : clioserv/exploitation)");
+        info_prompt("check that the working folder contains the folder ./website_assets");
+        print_current_directory();
+        return 0;
+    }
+
+    if (!S_ISDIR(st.st_mode)) {
+        error_prompt("\"./website_assets\" exist but isn't a folder");
+        info_prompt("best course of action may be to fully reclone the repo");
+        return 0;
+    }
+
+    ok_prompt("website_assets folder found");
+    return 1;
+}
+
+// Fonction d'essai. Envisager la suppression plus tard
+void print_current_directory(void) {
+    char cwd[PATH_MAX];
+
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        info_prompt("current directory: %s", cwd);
+    } else {
+        error_prompt(RED STYLE_BOLD"current folder unavailable"RESET);
+    }
+}
+
 int main(void) {
-    struct mg_connection *nc;
+    printf(CLEAR_SCREEN);
 
-    mg_mgr_init(&mgr);
+    // TODO: Start-up banner
 
-    nc = mg_http_listen(&mgr, s_http_port, ev_handler, NULL);
-    if (nc == NULL) {
-        fprintf(stderr, "Échec de la connexion au port %s\n", s_http_port);
+    ok_prompt("Initializing Clioserv's webserver...");
+
+    // TODO: load configuration file
+    // TODO: parse command-line arguments
+
+    // TODO: externaliser la présente commande dans un futur ensemble init
+    if (!ensure_assets_directory()) {
         return 1;
     }
 
-    printf("Webserver - Serveur HTTP démarré sur le port %s\n", s_http_port);
-
-    while (1) {
-        mg_mgr_poll(&mgr, 1000);
-    }
-
-    mg_mgr_free(&mgr);
+    run_server();
     return 0;
 }
