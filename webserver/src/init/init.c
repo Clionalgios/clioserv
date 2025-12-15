@@ -9,6 +9,7 @@ void init(int argc, char *argv[]) {
 
     printf(STARTUP_BANNER);
 
+
     // TODO: reset logs files
     init_logs_status_t status = init_logs(argv[0]);
 
@@ -17,22 +18,22 @@ void init(int argc, char *argv[]) {
 
         switch (status) {
         case INIT_LOGS_PATH_RESOLUTION_FAILED:
-            info_prompt("unable to resolve binary path");
-            break;
+            error_prompt("unable to resolve binary path");
+            exit(1);
         case INIT_LOGS_NOT_A_DIRECTORY:
-            info_prompt("logs path exists but is not a directory");
-            break;
+            error_prompt("logs path exists but is not a directory");
+            exit(2);
         case INIT_LOGS_CREATE_FAILED:
-            info_prompt("failed to create logs directory");
-            break;
+            error_prompt("failed to create logs directory");
+            exit(3);
         case INIT_LOGS_PERMISSION_ERROR:
-            info_prompt("permission error while handling logs");
-            break;
+            error_prompt("permission error while handling logs");
+            exit(4);
         case INIT_LOGS_IO_ERROR:
-            info_prompt("I/O error while processing existing log files");
-            break;
+            error_prompt("I/O error while processing existing log files");
+            exit(5);
         default:
-            break;
+            exit(0);
         }
 
         return 1;
