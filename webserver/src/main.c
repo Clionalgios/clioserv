@@ -39,55 +39,8 @@ int run_server(void) {
     return 0;
 }
 
-// TODO: déplacer cette fonction dans init.c
-int ensure_assets_directory(void) {
-    const char *path = "./website_assets";
-    struct stat st;
-
-    
-    if (stat(path, &st) != 0) { /* Vérifie l'existence du dossier */
-        error_prompt("folder \"%s\" not found", path);
-
-        info_prompt("you may not be in the correct working directory");
-        info_prompt("default expected path: clioserv/exploitation");
-        info_prompt("ensure that the folder contains \"%s/\"", path);
-        print_current_directory();
-        return 0;
-    }
-
-    if (!S_ISDIR(st.st_mode)) { /* Vérifie qu'il s'agit bien d'un répertoire */
-        error_prompt("\"%s\" exists but is not a directory", path);
-        info_prompt("recommended fix: reclone the repository");
-        return 0;
-    }
-
-    ok_prompt("assets directory \"%s\" detected", path);
-    return 1;
-}
-
-// TODO: déplacer cette fonction dans init.c
-void print_current_directory(void) {
-    char cwd[PATH_MAX];
-
-    if (getcwd(cwd, sizeof(cwd)) != NULL) {
-        info_prompt("current directory: %s", cwd);
-    } else {
-        error_prompt(RED STYLE_BOLD"current folder unavailable"RESET);
-    }
-}
-
 int main(int argc, char *argv[]) {
-    init(argc, &argv);
-
-    // TODO: Start-up banner
-
-    ok_prompt("Initializing Clioserv's webserver...");
-
-    // TODO: load configuration file
-    // TODO: parse command-line arguments
-
-    // TODO: externaliser la présente commande dans un futur ensemble init
-    if (!ensure_assets_directory()) {
+    if (init(argc, &argv) != 0) {
         return 1;
     }
 
