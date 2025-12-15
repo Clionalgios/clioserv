@@ -4,6 +4,8 @@
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
+#include <stddef.h>
+#include <time.h>
 
 #ifdef _WIN32
     #include <windows.h>
@@ -12,6 +14,7 @@
     #define MKDIR(path) _mkdir(path)
     #define STAT _stat
     #define STRCASECMP _stricmp
+    #define PATH_SEP "\\"
 #else
     #include <sys/stat.h>
     #include <dirent.h>
@@ -19,7 +22,32 @@
     #define MKDIR(path) mkdir(path, 0755)
     #define STAT stat
     #define STRCASECMP strcasecmp
+    #define PATH_SEP "/"
 #endif
+
+int init_logs_failure(init_logs_status_t status){
+    error_prompt("logs initialization failed");
+
+    switch (status) {
+    case INIT_LOGS_PATH_RESOLUTION_FAILED:
+        error_prompt("unable to resolve binary path");
+        exit(1);
+    case INIT_LOGS_NOT_A_DIRECTORY:
+        error_prompt("logs path exists but is not a directory");
+        exit(2);
+    case INIT_LOGS_CREATE_FAILED:
+        error_prompt("failed to create logs directory");
+        exit(3);
+    case INIT_LOGS_PERMISSION_ERROR:
+        error_prompt("permission error while handling logs");
+        exit(4);
+    case INIT_LOGS_IO_ERROR:
+        error_prompt("I/O error while processing existing log files");
+        exit(5);
+    default:
+        exit(0);
+    }
+}
 
 /* -------------------------------------------------------------------------- */
 /* Helpers internes                                                            */
@@ -172,6 +200,74 @@ static int build_unique_save_dir(const char *saves_root,
     }
 }
 
+int create_session_logfile(const char *logs_dir,
+                           char *out_path,
+                           size_t out_size)
+{
+    if (!logs_dir || !out_path || out_size == 0)
+        return -1;
+
+    /* Récupération du temps courant */
+    time_t now = time(NULL);
+    if (now == (time_t)-1)
+        return -2;
+
+    struct tm tm_now;
+
+#ifdef _WIN32
+    if (localtime_s(&tm_now, &now) != 0)
+        return -3;
+#else
+    if (!localtime_r(&now, &tm_now))
+        return -3;
+#endif
+
+    /* Génération du nom YYYYMMDDhhmmss.log */
+    char filename[32];
+    int n = snprintf(
+        filename,
+        sizeof filename,
+        "%04d-%02d-%02d-%02d%02d%02d.log",
+        tm_now.tm_year + 1900,
+        tm_now.tm_mon + 1,
+        tm_now.tm_mday,
+        tm_now.tm_hour,
+        tm_now.tm_min,
+        tm_now.tm_sec
+    );
+
+    if (n <= 0 || (size_t)n >= sizeof filename)
+        return -4;
+
+    /* Construction du chemin complet : <logs_dir>/<filename> */
+    n = snprintf(
+        out_path,
+        out_size,
+        "%s%s%s",
+        logs_dir,
+        PATH_SEP,
+        filename
+    );
+
+    if (n <= 0 || (size_t)n >= out_size)
+        return -5;
+
+    /* Création effective du fichier */
+#ifdef _WIN32
+    FILE *fp = fopen(out_path, "w");   /* "x" non portable sur MSVC */
+    if (!fp)
+        return -6;
+#else
+    FILE *fp = fopen(out_path, "wx");  /* échec si existe */
+    if (!fp)
+        return -6;
+#endif
+
+    fclose(fp);
+    return 0;
+}
+
+
 /* -------------------------------------------------------------------------- */
 /* Fonction principale                                                         */
 /* -------------------------------------------------------------------------- */
@@ -257,6 +353,16 @@ init_logs_status_t init_logs(const char *argv0) {
 
     closedir(dir);
 #endif
+
+    char session_log[PATH_MAX];
+
+    int rc = create_session_logfile(logs_dir, session_log, sizeof session_log);
+    if (rc != 0) {
+        error_prompt("failed to create session log file (code %d)", rc);
+        return 1;
+    }
+
+    ok_prompt("session log created: %s", session_log);
 
     return INIT_LOGS_OK;
 }

@@ -40,15 +40,6 @@ int run_server(void) {
 }
 
 int main(int argc, char *argv[]) {
-    printf("\n");
-    printf("HI\n");
-    printf("Total arguments: %d\n", argc);
-
-    // Print each argument
-    for (int i = 0; i < argc; i++) {
-        printf("Argument %d: %s\n", i, argv[i]);
-    }
-
     if (init(argc, argv) != 0) {
         return 1;
     }

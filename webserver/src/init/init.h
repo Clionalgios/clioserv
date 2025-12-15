@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #ifndef INIT_H
 #define INIT_H
 
@@ -28,5 +30,8 @@ init_status_t init_check_config(void);
 
 // Logs / affichage
 void init_log_status(init_status_t status);
+int create_session_logfile(const char *logs_dir,
+                           char *out_path,
+                           size_t out_size);
 
 #endif /* INIT_H */
