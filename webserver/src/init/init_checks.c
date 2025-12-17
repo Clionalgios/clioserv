@@ -39,7 +39,6 @@ init_status_t init_check_assets(void) {
 }
 
 init_status_t init_check_config(void) {
-    // Hypothétique
     // TODO: vérifier fichier de config
     return INIT_OK;
 }

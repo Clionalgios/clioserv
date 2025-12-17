@@ -1,26 +1,17 @@
 #include "init.h"
 #include "prompts.h"
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <limits.h>
-#include <stddef.h>
-#include <time.h>
+#include "fs_helpers.h"
 
 #ifdef _WIN32
     #include <windows.h>
     #include <direct.h>
-    #include <sys/stat.h>
     #define MKDIR(path) _mkdir(path)
-    #define STAT _stat
     #define STRCASECMP _stricmp
     #define PATH_SEP "\\"
 #else
-    #include <sys/stat.h>
     #include <dirent.h>
     #include <unistd.h>
     #define MKDIR(path) mkdir(path, 0755)
-    #define STAT stat
     #define STRCASECMP strcasecmp
     #define PATH_SEP "/"
 #endif
@@ -49,21 +40,6 @@ int init_logs_failure(init_logs_status_t status){
     }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Helpers internes                                                            */
-/* -------------------------------------------------------------------------- */
-
-static int is_directory(const char *path) {
-    struct STAT st;
-    if (STAT(path, &st) != 0)
-        return 0;
-#ifdef _WIN32
-    return (st.st_mode & _S_IFDIR) != 0;
-#else
-    return S_ISDIR(st.st_mode);
-#endif
-}
-
 static int ensure_directory(const char *path) {
     if (is_directory(path))
         return 1;
@@ -80,105 +56,6 @@ static int is_log_file(const char *name) {
         return 0;
     return STRCASECMP(name + len - 4, ".log") == 0;
 }
-
-/*
- * Résout le répertoire contenant le binaire en cours d'exécution.
- *
- * Stratégie :
- * - Windows : GetModuleFileNameA(NULL, ...)
- * - POSIX :
- *   1) tentative via realpath(argv0)
- *   2) fallback : extraction du dirname depuis argv0
- *
- * Limites connues :
- * - Sous POSIX, realpath(argv0) peut échouer si argv0 est relatif
- *   ou si le binaire est lancé via $PATH.
- * - Le fallback peut échouer si argv0 ne contient aucun '/'.
- *
- * Paramètres :
- * - argv0     : argv[0] tel que reçu par main()
- * - out       : buffer de sortie
- * - out_size  : taille du buffer
- *
- * Retour :
- * - 1 en cas de succès
- * - 0 en cas d'échec (aucun log fatal ici)
- */
-static int resolve_binary_dir(const char *argv0,
-                              char *out,
-                              size_t out_size) {
-    if (!argv0 || !out || out_size == 0) {
-        // info_prompt("TODO changes resolve_binary_dir: invalid arguments");
-        return 0;
-    }
-
-    // info_prompt("TODO changes resolve_binary_dir: argv0=\"%s\"", argv0);
-
-#ifdef _WIN32
-    char buf[MAX_PATH];
-
-    if (GetModuleFileNameA(NULL, buf, sizeof buf) == 0) {
-        // info_prompt("TODO changes resolve_binary_dir: GetModuleFileNameA failed");
-        return 0;
-    }
-
-    // info_prompt("TODO changes resolve_binary_dir: full module path=\"%s\"", buf);
-
-    char *last_sep = strrchr(buf, '\\');
-    if (!last_sep) {
-        // info_prompt("TODO changes resolve_binary_dir: no directory separator found");
-        return 0;
-    }
-
-    *last_sep = '\0';
-    strncpy(out, buf, out_size - 1);
-    out[out_size - 1] = '\0';
-
-    // info_prompt("TODO changes resolve_binary_dir: resolved directory=\"%s\"", out);
-    return 1;
-
-#else
-    char resolved[PATH_MAX];
-
-    if (realpath(argv0, resolved)) {
-        // info_prompt("TODO changes resolve_binary_dir: realpath resolved \"%s\"", resolved);
-
-        char *last_sep = strrchr(resolved, '/');
-        if (!last_sep) {
-            // info_prompt("TODO changes resolve_binary_dir: no '/' found after realpath");
-            return 0;
-        }
-
-        *last_sep = '\0';
-        strncpy(out, resolved, out_size - 1);
-        out[out_size - 1] = '\0';
-
-        // info_prompt("TODO changes resolve_binary_dir: directory from realpath=\"%s\"", out);
-        return 0;
-    }
-
-    // info_prompt("TODO changes resolve_binary_dir: realpath failed, using fallback");
-
-    const char *slash = strrchr(argv0, '/');
-    if (!slash) {
-        // info_prompt("TODO changes resolve_binary_dir: fallback failed (no '/' in argv0)");
-        return 0;
-    }
-
-    size_t len = (size_t)(slash - argv0);
-    if (len >= out_size) {
-        // info_prompt("TODO changes resolve_binary_dir: output buffer too small");
-        return 0;
-    }
-
-    strncpy(out, argv0, len);
-    out[len] = '\0';
-
-    // info_prompt("TODO changes resolve_binary_dir: directory from fallback=\"%s\"", out);
-    return 1;
-#endif
-}
-
 
 /* Génère logs/saves/<logname>-save[-N] */
 static int build_unique_save_dir(const char *saves_root,
@@ -277,7 +154,7 @@ init_logs_status_t init_logs(const char *argv0) {
     char logs_dir[PATH_MAX];
     char saves_dir[PATH_MAX];
 
-    if (resolve_binary_dir(argv0, bin_dir, sizeof bin_dir))
+    if (resolve_current_dir(argv0, bin_dir, sizeof bin_dir))
         return INIT_LOGS_PATH_RESOLUTION_FAILED;
 
     snprintf(logs_dir, sizeof logs_dir, "%s/logs", bin_dir);
@@ -361,6 +238,15 @@ init_logs_status_t init_logs(const char *argv0) {
         error_prompt("failed to create session log file (code %d)", rc);
         return 1;
     }
+    
+    FILE *log_fp = fopen(session_log, "a");
+    if (!log_fp) {
+        error_prompt("unable to open session log file");
+        return 1;
+    }
+
+    prompt_set_logfile(log_fp);
+
 
     ok_prompt("session log created: %s", session_log);
 

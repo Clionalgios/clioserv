@@ -17,6 +17,19 @@
             "cppStandard": "c++17",
             "intelliSenseMode": "windows-gcc-x64",
             "compilerPath": "C:/msys64/mingw64/bin/gcc.exe"
+        },
+        {
+            "name": "WSL-GCC",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/common/src/**",
+                "${workspaceFolder}/common/dependencies/**"
+            ],
+            "defines": []
         }
     ],
     "version": 4

@@ -1,7 +1,11 @@
-#include <stddef.h>
-
 #ifndef INIT_H
 #define INIT_H
+
+#if !defined(_SIZE_T)
+#define _SIZE_T
+typedef __SIZE_TYPE__ size_t;
+
+#endif
 
 // États possibles lors de l'initialisation
 typedef enum {

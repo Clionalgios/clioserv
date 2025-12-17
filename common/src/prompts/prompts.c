@@ -3,6 +3,8 @@
 #include <time.h>
 #include <string.h>
 #include <stddef.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -13,7 +15,6 @@
 #define TEXT "clio"
 
 #define RESET  "\x1B[0m"
-
 #define STYLE_BOLD  "\x1B[1m"
 #define STYLE_SLIM  "\x1B[2m"
 #define STYLE_ITALIC  "\x1B[3m"
@@ -69,8 +70,28 @@
 #define BG_V_CYAN  "\x1B[106m"
 #define BG_V_WHITE  "\x1B[107m"
 
-// Remplit `buf` (taille buf_size) avec un timestamp de la forme:
-// 2025-12-09 22:14:03.123
+static FILE *g_session_log = NULL;
+
+typedef enum {
+    PROMPT_OK,
+    PROMPT_INFO,
+    PROMPT_ERROR
+} prompt_level_t;
+
+static const struct {
+    const char *label;
+    const char *color;
+} prompt_meta[] = {
+    [PROMPT_OK]    = { "OK",    GREEN  },
+    [PROMPT_INFO]  = { "INFO",  YELLOW },
+    [PROMPT_ERROR] = { "ERROR", RED    }
+};
+
+void prompt_set_logfile(FILE *fp)
+{
+    g_session_log = fp;
+}
+
 void log_current_time(char *buf, size_t buf_size)
 {
     if (buf == NULL || buf_size == 0) return;
@@ -104,52 +125,59 @@ void log_current_time(char *buf, size_t buf_size)
 #endif
 }
 
-#include <stdarg.h>
-
-void ok_prompt(const char *fmt, ...) {
+static void prompt_internal(prompt_level_t level,
+                            const char *fmt,
+                            va_list args)
+{
     char timestamp[32];
     log_current_time(timestamp, sizeof timestamp);
 
+    /* Formatage du message utilisateur */
     char msg[256];
-    va_list args;
-    va_start(args, fmt);
     vsnprintf(msg, sizeof msg, fmt, args);
-    va_end(args);
 
-    printf(STYLE_SLIM"[%s]"RESET" ["GREEN STYLE_BOLD"OK"RESET"] - %s\n",
-           timestamp, msg);
+    /* --- Sortie console (inchangée) --- */
+    printf(
+        STYLE_SLIM "[%s]" RESET " [%s" STYLE_BOLD "%s" RESET "] - %s\n",
+        timestamp,
+        prompt_meta[level].color,
+        prompt_meta[level].label,
+        msg
+    );
+
+    /* --- Sortie fichier (texte brut) --- */
+    if (g_session_log) {
+        fprintf(
+            g_session_log,
+            "[%s] [%s] %s\n",
+            timestamp,
+            prompt_meta[level].label,
+            msg
+        );
+        fflush(g_session_log);
+    }
 }
 
-void info_prompt(const char *fmt, ...) {
-    char timestamp[32];
-    log_current_time(timestamp, sizeof timestamp);
-
-    char msg[256];
+void ok_prompt(const char *fmt, ...)
+{
     va_list args;
     va_start(args, fmt);
-    vsnprintf(msg, sizeof msg, fmt, args);
+    prompt_internal(PROMPT_OK, fmt, args);
     va_end(args);
-
-    printf(STYLE_SLIM"[%s]"RESET" ["YELLOW STYLE_BOLD"INFO"RESET"] - %s\n",
-           timestamp, msg);
 }
 
-void error_prompt(const char *fmt, ...) {
-    char timestamp[32];
-    log_current_time(timestamp, sizeof timestamp);
-
-    char msg[256];
+void info_prompt(const char *fmt, ...)
+{
     va_list args;
     va_start(args, fmt);
-    vsnprintf(msg, sizeof msg, fmt, args);
+    prompt_internal(PROMPT_INFO, fmt, args);
     va_end(args);
-
-    printf(STYLE_SLIM"[%s]"RESET" ["RED STYLE_BOLD"ERROR"RESET"] - %s\n",
-           timestamp, msg);
 }
 
-// void playing_with_prompts(void) {
-//     printf(RESET "\nnormal" RESET STYLE_BOLD "\nbold" RESET STYLE_SLIM "\nslim" RESET STYLE_ITALIC "\nitalic" RESET STYLE_UNDERLINED "\nunderlined" RESET STYLE_SLOWBLINK "\nslowblink" RESET STYLE_QUICKBLINK "\nquickblink" RESET STYLE_REVERSE "\nreversed" RESET STYLE_INVISIBLE "\ninvisible" RESET STYLE_CROSSED "\ncrossed" RESET);
-//     printf(RESET "\nnormal" RESET BLACK "\nblack" RESET RED "\nred" RESET GREEN "\ngreen" RESET YELLOW "\nyellow" RESET BLUE "\nblue" RESET MAGENTA "\nmagenta" RESET CYAN "\ncyan" RESET WHITE "\nwhite" RESET);
-//     printf(RESET "\nnormal" RESET V_BLACK "\nvif-black" RESET V_RED "\nvif-red" RESET V_GREEN "\nvif-green" RESET V_YELLOW "\nvif-yellow" RESET V_BLUE "\nvif-blue" RESET V_MAGENTA "\nvif-magenta" RESET V_CYAN "\nvif-cyan" RESET V_WHITE "\nvif-white" RESET);
-// }
+void error_prompt(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    prompt_internal(PROMPT_ERROR, fmt, args);
+    va_end(args);
+}
