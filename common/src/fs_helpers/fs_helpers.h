@@ -4,8 +4,10 @@
 
 #ifdef _WIN32
     #define STAT _stat
+    #define MKDIR(path) _mkdir(path)
 #else
     #define STAT stat
+    #define MKDIR(path) mkdir(path, 0755)
 #endif
 
 #ifndef PATH_MAX
@@ -16,6 +18,8 @@
 #define _SIZE_T
 typedef __SIZE_TYPE__ size_t;
 #endif
+
+int ensure_directory(const char *path);
 
 int is_directory(const char *path);
 

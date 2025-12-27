@@ -40,16 +40,6 @@ int init_logs_failure(init_logs_status_t status){
     }
 }
 
-static int ensure_directory(const char *path) {
-    if (is_directory(path))
-        return 1;
-
-    if (MKDIR(path) != 0)
-        return 0;
-
-    return is_directory(path);
-}
-
 static int is_log_file(const char *name) {
     size_t len = strlen(name);
     if (len < 4)

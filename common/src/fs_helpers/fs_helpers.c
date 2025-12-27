@@ -1,7 +1,21 @@
+/* fs_helpers : filesystem helpers. Provides functions aimed to solves various folders and files. Used first for logging operations. */
+
 #include <sys/stat.h>
 #include "fs_helpers.h"
 #include "prompts.h"
 
+/* Checks if there is a directory. */
+int ensure_directory(const char *path) {
+    if (is_directory(path))
+        return 1;
+
+    if (MKDIR(path) != 0)
+        return 0;
+
+    return is_directory(path);
+}
+
+/* Validates if provided path is a directory. */
 int is_directory(const char *path) {
     struct STAT st;
     if (STAT(path, &st) != 0)

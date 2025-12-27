@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "init.h"
+#include "logs.h"
 
 #define CLEAR_SCREEN "\x1B[2J\x1B[H"
 #define STARTUP_BANNER ""

@@ -1,0 +1,261 @@
+#include "logs.h"
+#include "prompts.h"
+#include "fs_helpers.h"
+
+#ifdef _WIN32
+    #include <windows.h>
+    #include <direct.h>
+    #define MKDIR(path) _mkdir(path)
+    #define STRCASECMP _stricmp
+    #define PATH_SEP "\\"
+#else
+    #include <dirent.h>
+    #include <unistd.h>
+    #define MKDIR(path) mkdir(path, 0755)
+    #define STRCASECMP strcasecmp
+    #define PATH_SEP "/"
+#endif
+
+int init_logs_failure(init_logs_status_t status){
+    error_prompt("logs initialization failed");
+
+    switch (status) {
+    case INIT_LOGS_PATH_RESOLUTION_FAILED:
+        error_prompt("unable to resolve binary path");
+        exit(1);
+    case INIT_LOGS_NOT_A_DIRECTORY:
+        error_prompt("logs path exists but is not a directory");
+        exit(2);
+    case INIT_LOGS_CREATE_FAILED:
+        error_prompt("failed to create logs directory");
+        exit(3);
+    case INIT_LOGS_PERMISSION_ERROR:
+        error_prompt("permission error while handling logs");
+        exit(4);
+    case INIT_LOGS_IO_ERROR:
+        error_prompt("I/O error while processing existing log files");
+        exit(5);
+    default:
+        exit(0);
+    }
+}
+
+static int is_log_file(const char *name) {
+    size_t len = strlen(name);
+    if (len < 4)
+        return 0;
+    return STRCASECMP(name + len - 4, ".log") == 0;
+}
+
+/* Génère logs/saves/<logname>-save[-N] */
+static int build_unique_save_dir(const char *saves_root,
+                                 const char *log_name,
+                                 char *out,
+                                 size_t out_size) {
+    int index = 0;
+
+    for (;;) {
+        if (index == 0)
+            snprintf(out, out_size, "%s/%s-save", saves_root, log_name);
+        else
+            snprintf(out, out_size, "%s/%s-save-%d", saves_root, log_name, index);
+
+        if (!is_directory(out))
+            return 1;
+
+        index++;
+    }
+}
+
+int create_session_logfile(const char *logs_dir,
+                           char *out_path,
+                           size_t out_size)
+{
+    if (!logs_dir || !out_path || out_size == 0)
+        return -1;
+
+    /* Récupération du temps courant */
+    time_t now = time(NULL);
+    if (now == (time_t)-1)
+        return -2;
+
+    struct tm tm_now;
+
+#ifdef _WIN32
+    if (localtime_s(&tm_now, &now) != 0)
+        return -3;
+#else
+    if (!localtime_r(&now, &tm_now))
+        return -3;
+#endif
+
+    /* Génération du nom YYYYMMDDhhmmss.log */
+    char filename[32];
+    int n = snprintf(
+        filename,
+        sizeof filename,
+        "%04d-%02d-%02d-%02d%02d%02d.log",
+        tm_now.tm_year + 1900,
+        tm_now.tm_mon + 1,
+        tm_now.tm_mday,
+        tm_now.tm_hour,
+        tm_now.tm_min,
+        tm_now.tm_sec
+    );
+
+    if (n <= 0 || (size_t)n >= sizeof filename)
+        return -4;
+
+    /* Construction du chemin complet : <logs_dir>/<filename> */
+    n = snprintf(
+        out_path,
+        out_size,
+        "%s%s%s",
+        logs_dir,
+        PATH_SEP,
+        filename
+    );
+
+    if (n <= 0 || (size_t)n >= out_size)
+        return -5;
+
+    /* Création effective du fichier */
+#ifdef _WIN32
+    FILE *fp = fopen(out_path, "w");   /* "x" non portable sur MSVC */
+    if (!fp)
+        return -6;
+#else
+    FILE *fp = fopen(out_path, "wx");  /* échec si existe */
+    if (!fp)
+        return -6;
+#endif
+
+    fclose(fp);
+    return 0;
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* Fonction principale                                                         */
+/* -------------------------------------------------------------------------- */
+
+init_logs_status_t init_logs(const char *argv0) {
+    char bin_dir[PATH_MAX];
+    char logs_dir[PATH_MAX];
+    char saves_dir[PATH_MAX];
+
+    if (resolve_current_dir(argv0, bin_dir, sizeof bin_dir))
+        return INIT_LOGS_PATH_RESOLUTION_FAILED;
+
+    snprintf(logs_dir, sizeof logs_dir, "%s/logs", bin_dir);
+    if (!ensure_directory(logs_dir))
+        return INIT_LOGS_CREATE_FAILED;
+
+    snprintf(saves_dir, sizeof saves_dir, "%s/saves", logs_dir);
+    if (!ensure_directory(saves_dir))
+        return INIT_LOGS_CREATE_FAILED;
+
+#ifdef _WIN32
+    char search[MAX_PATH];
+    snprintf(search, sizeof search, "%s\\*", logs_dir);
+
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(search, &fd);
+    if (h == INVALID_HANDLE_VALUE)
+        return INIT_LOGS_IO_ERROR;
+
+    do {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            continue;
+
+        if (!is_log_file(fd.cFileName))
+            continue;
+
+        char save_dir[PATH_MAX];
+        if (!build_unique_save_dir(saves_dir, fd.cFileName,
+                                   save_dir, sizeof save_dir))
+            return INIT_LOGS_CREATE_FAILED;
+
+        if (MKDIR(save_dir) != 0)
+            return INIT_LOGS_CREATE_FAILED;
+
+        char src[PATH_MAX], dst[PATH_MAX];
+        snprintf(src, sizeof src, "%s/%s", logs_dir, fd.cFileName);
+        snprintf(dst, sizeof dst, "%s/%s", save_dir, fd.cFileName);
+
+        if (rename(src, dst) != 0)
+            return INIT_LOGS_IO_ERROR;
+
+    } while (FindNextFileA(h, &fd));
+
+    FindClose(h);
+
+#else
+    DIR *dir = opendir(logs_dir);
+    if (!dir)
+        return INIT_LOGS_IO_ERROR;
+
+    struct dirent *ent;
+    while ((ent = readdir(dir)) != NULL) {
+        if (!is_log_file(ent->d_name))
+            continue;
+
+        char save_dir[PATH_MAX];
+        if (!build_unique_save_dir(saves_dir, ent->d_name,
+                                   save_dir, sizeof save_dir))
+            return INIT_LOGS_CREATE_FAILED;
+
+        if (MKDIR(save_dir) != 0)
+            return INIT_LOGS_CREATE_FAILED;
+
+        char src[PATH_MAX], dst[PATH_MAX];
+        snprintf(src, sizeof src, "%s/%s", logs_dir, ent->d_name);
+        snprintf(dst, sizeof dst, "%s/%s", save_dir, ent->d_name);
+
+        if (rename(src, dst) != 0) {
+            closedir(dir);
+            return INIT_LOGS_IO_ERROR;
+        }
+    }
+
+    closedir(dir);
+#endif
+
+    char session_log[PATH_MAX];
+
+    int rc = create_session_logfile(logs_dir, session_log, sizeof session_log);
+    if (rc != 0) {
+        error_prompt("failed to create session log file (code %d)", rc);
+        return 1;
+    }
+    
+    FILE *log_fp = fopen(session_log, "a");
+    if (!log_fp) {
+        error_prompt("unable to open session log file");
+        return 1;
+    }
+
+    prompt_set_logfile(log_fp);
+
+
+    ok_prompt("session log created: %s", session_log);
+
+    return INIT_LOGS_OK;
+}
+
+
+/* init_logs : 
+Voici le pseudocode de la prochaine fonction que je veux faire. Dis-moi si tu as besoin de plus d'infos :
+```/* 
+- Signature de la fonction : ```int init_logs(const char *argv0);```,
+- Si le répertoire ./clioserv/exploitation/logs/ n'existe pas (le binaire se trouve dans exploitation), le créer (le chemin de référence exact doit partir du binaire, donc de ```<dirname(argv[0])>/logs/```, résolution du chemin avec realpath(argv0, ...) si possible fallback dirname(argv0) si échec)
+- si le répertoire existe, regarder si il contient un ou plusieurs fichiers .log
+- si ```logs``` n'est pas un répertoire mais un fichier, échouer explicitement avec message d'erreur
+- ne pas toucher au contenu du reste du répertoire si il existe
+- créer un répertoire saves/ dans le répertoire logs/ susmentionné. Pas besoin de tester si il possède un contenu
+- si un fichier .log est présent dans le répertoire logs/, créer un répertoire <nom>-save dans le sous-répertoire logs/saves/ reprenant le nom du fichier dont l'extension est .log (prévoir test avec un fichier.log de test). Si il y a plusieurs logs, répéter l'opération pour chaque fichier log (sachant qu'un fichier log correspond à une session du programme). Un répertoire save par fichier. Déplacer le fichier .log précédemment trouvé et utiliser pour la création du nouveau répertoire de sauvegarde ainsi créé dans ce même répertoire. Suffixe strict. Ne pas prendre en compte la casse ou les variantes.
+- ordre de traitement de multiples fichiers .log -> arbitraire
+- nom précis du répertoire : server.log → server.log-save/
+- si le répertoire server.log-save existe déjà, ajouter un suffixe "-1" au nom. Incrémenter pour chaque cas de collision sans limite, premier libre wins. Insensible à la casse. Extension terminale.
+- si mkdir() échoue, ou permissions insuffisantes ou fichier .log non accessible → renvoyer une erreur et arrêter le programme (problématiques de permissions ou autre. Dans tous les cas, trop singulier pour maintenir l'exécution du prog)
+```*/
