@@ -237,25 +237,7 @@ init_logs_status_t init_logs(const char *argv0) {
 
     prompt_set_logfile(log_fp);
 
-
     ok_prompt("session log created: %s", session_log);
 
     return INIT_LOGS_OK;
 }
-
-
-/* init_logs : 
-Voici le pseudocode de la prochaine fonction que je veux faire. Dis-moi si tu as besoin de plus d'infos :
-```/* 
-- Signature de la fonction : ```int init_logs(const char *argv0);```,
-- Si le répertoire ./clioserv/exploitation/logs/ n'existe pas (le binaire se trouve dans exploitation), le créer (le chemin de référence exact doit partir du binaire, donc de ```<dirname(argv[0])>/logs/```, résolution du chemin avec realpath(argv0, ...) si possible fallback dirname(argv0) si échec)
-- si le répertoire existe, regarder si il contient un ou plusieurs fichiers .log
-- si ```logs``` n'est pas un répertoire mais un fichier, échouer explicitement avec message d'erreur
-- ne pas toucher au contenu du reste du répertoire si il existe
-- créer un répertoire saves/ dans le répertoire logs/ susmentionné. Pas besoin de tester si il possède un contenu
-- si un fichier .log est présent dans le répertoire logs/, créer un répertoire <nom>-save dans le sous-répertoire logs/saves/ reprenant le nom du fichier dont l'extension est .log (prévoir test avec un fichier.log de test). Si il y a plusieurs logs, répéter l'opération pour chaque fichier log (sachant qu'un fichier log correspond à une session du programme). Un répertoire save par fichier. Déplacer le fichier .log précédemment trouvé et utiliser pour la création du nouveau répertoire de sauvegarde ainsi créé dans ce même répertoire. Suffixe strict. Ne pas prendre en compte la casse ou les variantes.
-- ordre de traitement de multiples fichiers .log -> arbitraire
-- nom précis du répertoire : server.log → server.log-save/
-- si le répertoire server.log-save existe déjà, ajouter un suffixe "-1" au nom. Incrémenter pour chaque cas de collision sans limite, premier libre wins. Insensible à la casse. Extension terminale.
-- si mkdir() échoue, ou permissions insuffisantes ou fichier .log non accessible → renvoyer une erreur et arrêter le programme (problématiques de permissions ou autre. Dans tous les cas, trop singulier pour maintenir l'exécution du prog)
-```*/
