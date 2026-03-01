@@ -1,3 +1,9 @@
+/*
+├── Header du site
+│   └── Onglets vers sections
+├── Bouton musique ?
+└── Footer ?
+
 /
 └── Page d'accueil du site web
 
@@ -57,6 +63,7 @@
 └── /blog/rss.xml
 
 /revival/
+├── Lien vers le manifeste de l'internet revival
 └── The Internet Revival Gateway *Mozaïque de liens-images vers des sites web indépendants, sous forme de tableau*
     └── *Pour chaque objet*
         └── Image-lien
