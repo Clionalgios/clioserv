@@ -1,6 +1,7 @@
 /*
 ├── Header du site
-│   └── Onglets vers sections
+│   ├── Onglets vers sections
+│   └── Bouton téléchargement du CV ?
 ├── Bouton musique ?
 └── Footer ?
 
@@ -96,3 +97,7 @@ Commentaire : l'ensemble de l'arborescence *admin* a été décommissionnée du 
 /404 *To be defined*
 
 /500 *To be defined*
+
+/sitemap.xml
+
+/robots.txt
