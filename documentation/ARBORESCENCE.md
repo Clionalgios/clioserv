@@ -101,3 +101,6 @@ Commentaire : l'ensemble de l'arborescence *admin* a été décommissionnée du 
 /sitemap.xml
 
 /robots.txt
+
+*/{lang}/
+└── Langue correspondante pour chaque page
