@@ -1,4 +1,118 @@
-# CAHIER DES CHARGES — Site Web Personnel
+Et maintenant ? Encore des incohérences ou des points à éclaircir. Si oui, je veux que tu propose directement la suggestion que tu veux rajouter.
+
+ARBORESCENCE.md :
+```/*
+├── Header du site
+│   ├── Onglets vers sections
+│   └── Bouton téléchargement du CV
+└── Footer
+
+/
+└── Page d'accueil du site web
+
+/whoami/
+├── Introduction *Petit paragraphe pour me présenter*
+├── Background *Récit biographique d'un paragraphe ou deux de taille moyenne pour expliquer ce qui m'a amené dans la cybersécurité*
+├── Projects *Liste des projets réalisés dont pendant les études*
+├── Hunting Board *Liste des CTFs et Labs réalisés*
+├── Skills *compétences techniques détaillées*
+├── Certifications *Téléchargeables pour background checks*
+├── CV *PDF téléchargeable*
+├── Accounts *Lien vers les comptes HackTheBox, RootMe, Ozintopia, etc*
+└── Contact *Informations de contact*
+
+/blog/
+├── /blog/browse/{page_number} *Liste des articles avec barre de recherches*
+│   ├── Barre de recherche
+│   │   ├── Moteur de recherche par opérateurs
+│   │   │   ├── Mots
+│   │   │   ├── Tags
+│   │   │   ├── Langue
+│   │   │   └── Date
+│   │   └── Cheat sheet avec les opérateurs
+│   ├── Activation d'un flux RSS ?? (apprendre ce que c'est pour commencer)
+│   ├── Désigner une adresse email pour s'abonner ??
+│   ├── Liste de x (selon la pagination définie) articles par page (ou moins si reste inférieur à 10)
+│   │   └── *Pour chaque article*
+│   │       ├── Image d'illustration
+│   │       ├── Titre
+│   │       ├── Date de publication
+│   │       ├── Auteur
+│   │       ├── Tags
+│   │       ├── Langues disponibles
+│   │       └── Pré-vue du contenu
+│   └── Pagination
+├── /blog/tag/{tag}/{page_number} *Compilation des articles par tag*
+│   ├── *Pour chaque article*
+│   │   ├── Image d'illustration
+│   │   ├── Titre
+│   │   ├── Date de publication
+│   │   ├── Auteur
+│   │   ├── Tags
+│   │   ├── Langues disponibles
+│   │   └── Pré-vue du contenu
+│   └── Pagination
+├── /blog/{slug} *Lecture d'un article*
+│   ├── Image de bannière
+│   ├── Langues disponibles
+│   ├── Titre
+│   ├── Date de publication
+│   ├── Auteur
+│   ├── Tags
+│   ├── Contenu
+│   └── Articles similaires
+└── /blog/rss.xml
+
+/revival/
+├── Lien vers le manifeste de l'internet revival
+└── The Internet Revival Gateway *Mozaïque de liens-images vers des sites web indépendants, sous forme de tableau*
+    └── *Pour chaque objet*
+        └── Image-lien
+
+/legal/ *To be defined, and i'm not in a hurry*
+
+/privacy/ *To be defined, and i'm not in a hurry*
+
+/cookies/ *To be defined, and i'm not in a hurry*
+
+/404 *To be defined*
+
+/500 *To be defined*
+
+/sitemap.xml
+
+/robots.txt
+
+*/{lang}/
+└── Langue correspondante pour chaque page, à la fin de l'URL
+
+/set-lang/{lang}/
+
+/set-theme/{theme}/
+
+**ANNEXE HISTORIQUE**
+
+Commentaire : l'ensemble de l'arborescence *admin* a été décommissionnée du projet. La documentation ci-dessous est conservée pour rappeler les opérations qui doivent être possibles de réaliser en ligne de commande, qui substituera toutes les opérations d'administration. L'authentification sera intégralement déléguée à un service SSH.
+/admin/ *Login si pas authentifié, sinon menu de gestion*
+│   ├── /admin/login *redirection vers si pas authentifié*
+│   └── Menu de gestion si authentifié
+│       └── Onglets
+│           ├── Bouton vers monitor
+│           ├── Bouton vers l'editoring
+│           └── Bouton logout
+│               └── Popup de confirmation
+│                   └── Activation de la route /admin/logout si confirmé
+├── /admin/monitor/ *Informations générales sur l'activité du site*
+│   └── TODO
+├── /admin/edit/ *Liste des pages dont articles*
+│   ├── Table avec la liste des pages du site web
+│   └── Boutons "Créer", "éditer" et "supprimer"
+│       ├── Si l'utilisateur choisit de créer ou éditer un article, ouvrir un menu d'édition de contenu avec interface d'édition de texte (envisager un framework pour intégrer la fonctionnalité plus facilement)
+│       └── Si l'utilisateur choisit de supprimer une page, afficher une pop-up de validation
+└── /admin/logout```
+
+CAHIER_DES_CHARGES.md :
+```# CAHIER DES CHARGES — Site Web Personnel
 
 ---
 
@@ -67,15 +181,7 @@ Développement :
 ### 4.2 Blog
 
 - Liste paginée
-- Barre de recherche (opérateurs inspirés Google) :
-  - tag:cyber
-  - lang:fr
-  - date>2024-01-01
-  - date<2025-01-01
-  - "phrase exacte"
-  - -mot (exclusion)
-Combinaison via AND implicite.
-Pas de OR en V1.
+- Barre de recherche (opérateurs inspirés Google)
 - Lecture d’article
 - Filtrage par tag
 - Flux RSS
@@ -130,7 +236,7 @@ Règles DRAFT :
 - Meta `noindex`
 - Exclu sitemap
 - Accessible par URL directe
-- URL mentionnant expréssement le statut `DRAFT-`, risque de fuite assumé
+- URL mentionnant expréssement le statut `DRAFT-`
 
 #### Convention URL
 
@@ -201,15 +307,6 @@ Langues disponibles :
 - /robots.txt : interdit les DRAFT-*
 - Balises <link rel="canonical"> pour chaque page
 
-### 8.1 Sitemap
-
-/blog/{slug}/{lang}/
-
-Chaque entrée contient :
-- <loc>
-- <lastmod>
-- <xhtml:link rel="alternate" hreflang="...">
-
 ---
 
 ## 9. Performance
@@ -238,10 +335,6 @@ Chaque entrée contient :
   - Contenu de la requête
   - Séparation des informations par un caractère spécial, séparation des différentes entrées par un retour à la ligne
   - Enregistré en fichier texte nommé en fonction du jour du lancement de la session du serveur
-  - Horodatage UTC ISO 8601
-  - Fichiers chmod 600
-  - Propriétaire : user système dédié
-  - Interdiction d’export externe hors incident
 
 ### Niveau 2
 
@@ -297,17 +390,7 @@ Chaque article contient :
 
 ---
 
-## 14. Cookies
-
-- Secure
-- HttpOnly (sauf si strictement nécessaire)
-- SameSite=Lax
-- Path=/
-- Durée max : 1 an
-
----
-
-## 15. Modèle de Données Logique
+## 14. Modèle de Données Logique
 
 ### Article
 
@@ -323,11 +406,12 @@ Article:
 Langue:
   code: ISO639-1
   nom_affiche: string
+  fallback: string (optionnel)
 ```
 
 ---
 
-## 16. Gestion multilingues
+## 15. Gestion multilingues
 
 - URL canonical : /blog/{slug}/{lang}/
 - URL sans slash final → redirection 301 vers canonical
@@ -342,7 +426,7 @@ Langue:
 
 ---
 
-## 17. Gestion multithèmes
+## 16. Gestion multithèmes
 
 - Changement des thèmes définit par un bouton et un menu déroulant.
 - Fonctionnement de la gestion multithèmes définie par `/set-theme/{theme}/` :
@@ -351,7 +435,7 @@ Langue:
 
 ---
 
-## 18. Maintenabilité
+## 17. Maintenabilité
 
 - Documentation synchronisée
 - CLI d’administration
@@ -361,7 +445,7 @@ Langue:
 
 ---
 
-## 19. Contraintes
+## 18. Contraintes
 
 - Développement solo
 - Budget nul
@@ -370,13 +454,13 @@ Langue:
 
 ---
 
-## 20. Cycle de vie du contenu
+## 19. Cycle de vie du contenu
 
 - Tester au démarrage du serveur, puis à intervalles régulières, que chaque objet dans sitemap ait ses fichiers correspondants et vice-versa, en tenant compte du statut des articles (draft ou published) à partir des critères de statut définis.
 
 ---
 
-## 21. Definition of Done
+## 20. Definition of Done
 
 - Toutes les routes fonctionnelles
 - Canonical respecté
@@ -388,13 +472,10 @@ Langue:
 - Pas d’erreurs serveur en navigation normale
 - Documentation synchronisée
 - Effacement automatique des logs au bout de 30 jours (crontab quotidien)
-- Résolution DNS A et AAAA fonctionnelle
-- Test curl via IPv4 et IPv6 valide
-- TLS valide sur IPv4 et IPv6
 
 ---
 
-## 22. État de Complétude
+## 21. État de Complétude
 
 | Domaine | Couverture |
 |----------|------------|
@@ -410,4 +491,4 @@ Langue:
 | Logging détaillé | Partiel |
 | Gouvernance technique | Partiel |
 
----
+---```
