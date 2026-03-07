@@ -104,6 +104,15 @@ Pas de OR en V1.
 
 ### 6.1 Architecture Générale
 
+#### 6.1.1 Router et webserver
+
+- Mini-serveur de routage "router" positionné en amont du webserveur "webserver" pour anticiper le scaling futur du projet et la répartition des tâches métiers. 
+- Router passe les requêtes adressées au serveur web à webserver
+- Port d'écoute de `router` : 80 (prod ; 8080 en environnement dev). Passe les requêtes à `webserver` par 81 (prod ; 8181 en environnement dev)
+- `webserver` peut fonctionner de façon autonome sans `router`, à condition de changer le port d'écoute par défaut
+
+#### 6.1.2 Caractéristiques générales
+
 - Moteur de templates maison
 - Génération dynamique
 - Organisation modulaire
