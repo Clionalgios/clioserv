@@ -5,65 +5,40 @@
 #include <mongoose.h>
 
 /*
- * match_uri(buf, len, pattern)
+ * match_uri(buf, pattern)
  *
- * Compare l'URI (buf,len) avec un motif littéral `pattern` (NUL-terminated).
+ * Compare l'URI (buf) avec un motif littéral `pattern` (NUL-terminated).
  * - ignore la query string et le fragment (tout après '?' ou '#')
  * - effectue une comparaison exacte du chemin (pas de wildcard)
  *
  * Retourne 1 si égal (match), 0 sinon.
  */
-int match_uri(const char *buf, size_t len, const char *pattern) {
-    /* détermine la longueur effective de l'URI (avant '?' ou '#') */
+int match_uri(struct mg_str *uri, const char *pattern) {
     size_t end = 0;
-    while (end < len) {
-        if (buf[end] == '?' || buf[end] == '#') break;
+
+    while (end < uri->len) {
+        if (uri->buf[end] == '?' || uri->buf[end] == '#') break;
         end++;
     }
 
     size_t plen = strlen(pattern);
-    if (plen != end) return 0;               /* tailles différentes => pas match */
-    if (end == 0 && plen == 0) return 1;     /* both empty */
+    if (plen != end) return 0;
 
-    /* comparaison binaire sur la portion utile */
-    return (memcmp(buf, pattern, plen) == 0) ? 1 : 0;
+    return (memcmp(uri->buf, pattern, plen) == 0) ? 1 : 0;
 }
+
 
 void events_handler(struct mg_connection *nc, int ev, void *ev_data) {
     if (ev != MG_EV_HTTP_MSG) return;
 
-    struct mg_http_message *hm = ev_data;
+    struct mg_http_message *hm = (struct mg_http_message *) ev_data;
 
-    // --- FAVICON -----------------------------------------------------
-    if (match_uri(hm->uri.buf, hm->uri.len, "/favicon.ico")) {
-        struct mg_http_serve_opts opts = {
-            .extra_headers = "Content-Type: image/x-icon\r\n"
-        };
-        mg_http_serve_file(nc, hm, "./website_assets/favicon.ico", &opts);
-        return;  // Ne pas poursuivre
-    }
-    // ----------------------------------------------------------------
-
-    // À partir d’ici : logique des pages normales
-    char *url = malloc(hm->uri.len + 1);
-    if (!url) {
-        mg_http_reply(nc, 500, "", "Internal server error");
-        return;
+    if (mg_strcmp(hm->method, mg_str("GET")) != 0) {
+        mg_http_reply(nc, 405,
+                      "Content-Type: text/plain\r\n",
+                      "Method Not Allowed\n");
+        return;  // ✅ PAS return 1
     }
 
-    // TODO: parse URL into url/media/language
-
-    char *language = NULL;
-    get_cookie_value(hm, "clio-lang", &language);
-
-    char *response = compose_page(url, NULL, language, "<TODOstyle_sheet>");
-    free(url);
-
-    if (!response) {
-        mg_http_reply(nc, 500, "", "Internal server error");
-        return;
-    }
-
-    mg_http_reply(nc, 200, "Content-Type: text/html\r\n", "%s", response);
-    free(response);
+    router_dispatch(nc, hm);
 }

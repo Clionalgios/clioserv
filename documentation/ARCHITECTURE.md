@@ -56,6 +56,8 @@ Ce document décrit l’architecture technique du projet :
                   │        WEBSERVER          │
                   │     (C - Port 81/8181)    │
                   │  • Gestion des requêtes   │
+                  │  • Prise en charge de GET │
+                  │  seulement                │
                   │  • Templates maison       │
                   │  • Injection contenu      │
                   └─────────────┬─────────────┘

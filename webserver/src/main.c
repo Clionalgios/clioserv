@@ -5,10 +5,6 @@
 #include "html_renderer.h"
 #include <string.h>
 
-#define RED  "\x1B[31m"
-#define RESET  "\x1B[0m"
-#define STYLE_BOLD  "\x1B[1m"
-
 
 static struct mg_mgr mgr;
 

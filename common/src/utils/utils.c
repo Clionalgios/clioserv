@@ -2,6 +2,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
+
+
+
+#define MAX_BANNER_LENGTH 4096
+#define MAX_LINE_LENGTH 1024
 
 char *strreplace(char *s, const char *s1, const char *s2) {
     char *result;
@@ -40,6 +46,87 @@ char *strreplace(char *s, const char *s1, const char *s2) {
 
     result[i] = '\0';
     return result;
+}
+
+
+
+char* get_server_banner(char* config_path) {
+    if (config_path == NULL) {
+        config_path = "settings.conf"; // Chemin par défaut
+    }
+    printf("%s", config_path);
+    fprintf(stderr, "Hiiiii\n");
+    FILE* file = fopen(config_path, "r");
+    if (!file) {
+        perror("Failed to open config file");
+        return NULL;
+    } else {
+        printf("DEBUG file found");
+    }
+
+    char* banner = malloc(MAX_BANNER_LENGTH);
+    if (!banner) {
+        fclose(file);
+        return NULL;
+    }
+    banner[0] = '\0'; // Initialize empty string
+
+    char line[MAX_LINE_LENGTH];
+    int in_banner_section = 0;
+    int banner_length = 0;
+
+    while (fgets(line, sizeof(line), file)) {
+        // Trim leading whitespace
+        char* trimmed = line;
+        while (isspace((unsigned char)*trimmed)) {
+            trimmed++;
+        }
+
+        // Check for banner_as_banner option
+        if (strncmp(trimmed, "banner_as_banner", 16) == 0) {
+            char* equals = strchr(trimmed, '=');
+            if (!equals) {
+                continue;
+            }
+
+            // Skip past equals sign and whitespace
+            equals++;
+            while (isspace((unsigned char)*equals)) {
+                equals++;
+            }
+
+            // Check for opening quote
+            if (*equals != '"') {
+                continue;
+            }
+            equals++; // Skip opening quote
+
+            // Copy everything until closing quote
+            while (*equals && *equals != '"' && banner_length < MAX_BANNER_LENGTH - 1) {
+                // Handle escaped quotes if needed
+                if (*equals == '\\' && *(equals + 1) == '"') {
+                    banner[banner_length++] = '"';
+                    equals += 2;
+                } else {
+                    banner[banner_length++] = *equals++;
+                }
+            }
+            banner[banner_length] = '\0';
+            in_banner_section = 1;
+            break;
+        } else {
+            printf("banner as banner not found");
+        }
+    }
+
+    fclose(file);
+
+    if (!in_banner_section) {
+        free(banner);
+        return NULL;
+    }
+
+    return banner;
 }
 
 // Fonction utilitaire pour lire le contenu d'un fichier dans une chaîne allouée dynamiquement

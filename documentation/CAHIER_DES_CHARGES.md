@@ -110,6 +110,7 @@ Pas de OR en V1.
 - Router passe les requêtes adressées au serveur web à webserver
 - Port d'écoute de `router` : 80 (prod ; 8080 en environnement dev). Passe les requêtes à `webserver` par 81 (prod ; 8181 en environnement dev)
 - `webserver` peut fonctionner de façon autonome sans `router`, à condition de changer le port d'écoute par défaut
+- `webserver` ne gère que des requêtes GET
 
 #### 6.1.2 Caractéristiques générales
 
