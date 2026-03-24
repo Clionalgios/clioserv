@@ -7,6 +7,7 @@
 
 char *strreplace(char *s, const char *s1, const char *s2);
 char *read_file_content(const char *filepath);
+char *get_server_banner();
 
 void get_cookie_value(struct mg_http_message *hm, char *cookie_name, char **cookie_value);
 

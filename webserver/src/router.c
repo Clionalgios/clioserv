@@ -16,18 +16,27 @@ static void reply_500(struct mg_connection *nc) {
 static int handle_banner(struct mg_connection *nc,
                          struct mg_http_message *hm) {
 
-
-    if (!match_uri(&hm->uri, "/banner"))
+    if (!match_uri(&hm->uri, "/banner.txt"))
         return 0;
 
+    char* banner = get_server_banner();
+
+    if (banner == NULL) {
+        mg_http_reply(nc, 500,
+                      "Content-Type: text/plain\r\n",
+                      "Error: Could not retrieve server banner\n");
+        return 1;
+    }
+
     mg_http_reply(nc, 200,
-                "Content-Type: text/plain\r\n",
-                "%s",
-                get_server_banner());
+                  "Content-Type: text/plain; charset=utf-8\r\n",
+                  "%.*s\n",
+                  (int)strlen(banner), banner);
 
-
+    free(banner);
     return 1;
 }
+
 
 static int handle_favicon(struct mg_connection *nc,
                           struct mg_http_message *hm) {

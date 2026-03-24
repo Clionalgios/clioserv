@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-
-
 #define MAX_BANNER_LENGTH 4096
 #define MAX_LINE_LENGTH 1024
 
@@ -50,19 +48,39 @@ char *strreplace(char *s, const char *s1, const char *s2) {
 
 
 
-char* get_server_banner(char* config_path) {
-    if (config_path == NULL) {
-        config_path = "settings.conf"; // Chemin par défaut
+char* get_current_dir() {
+    static char cwd[4096];
+
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        return cwd;
+    } else {
+        perror("getcwd() error");
+        return NULL;
     }
-    printf("%s", config_path);
-    fprintf(stderr, "Hiiiii\n");
+}
+
+char* get_server_banner() {
+    char* current_dir = get_current_dir();
+
+    // Allouer suffisamment d'espace pour le chemin complet
+    char* config_path = malloc(strlen(current_dir) + strlen("/settings.conf") + 1);
+    if (!config_path) {
+        perror("malloc failed");
+        return NULL;
+    }
+
+    // Construire le chemin correctement
+    strcpy(config_path, current_dir);
+    strcat(config_path, "/settings.conf");
+
     FILE* file = fopen(config_path, "r");
     if (!file) {
         perror("Failed to open config file");
+        free(config_path);
         return NULL;
-    } else {
-        printf("DEBUG file found");
     }
+
+    free(config_path); // On n'a plus besoin du chemin après ouverture
 
     char* banner = malloc(MAX_BANNER_LENGTH);
     if (!banner) {
@@ -74,6 +92,7 @@ char* get_server_banner(char* config_path) {
     char line[MAX_LINE_LENGTH];
     int in_banner_section = 0;
     int banner_length = 0;
+    int multi_line_banner = 0;
 
     while (fgets(line, sizeof(line), file)) {
         // Trim leading whitespace
@@ -82,40 +101,81 @@ char* get_server_banner(char* config_path) {
             trimmed++;
         }
 
+        // Skip empty lines and comments
+        if (*trimmed == '\0' || *trimmed == '#') {
+            continue;
+        }
+
         // Check for banner_as_banner option
-        if (strncmp(trimmed, "banner_as_banner", 16) == 0) {
-            char* equals = strchr(trimmed, '=');
-            if (!equals) {
-                continue;
-            }
+        if (!in_banner_section && strncmp(trimmed, "banner_as_banner", 16) == 0) {
+            char* equals = trimmed + 16;
 
-            // Skip past equals sign and whitespace
+            while (isspace((unsigned char)*equals)) equals++;
+
+            if (*equals != '=') continue;
+
             equals++;
-            while (isspace((unsigned char)*equals)) {
-                equals++;
-            }
+            while (isspace((unsigned char)*equals)) equals++;
 
-            // Check for opening quote
-            if (*equals != '"') {
-                continue;
-            }
-            equals++; // Skip opening quote
+            if (*equals != '"') continue;
+            equals++;
 
-            // Copy everything until closing quote
-            while (*equals && *equals != '"' && banner_length < MAX_BANNER_LENGTH - 1) {
-                // Handle escaped quotes if needed
+            // Copy content after opening quote
+            while (*equals && banner_length < MAX_BANNER_LENGTH - 1) {
                 if (*equals == '\\' && *(equals + 1) == '"') {
                     banner[banner_length++] = '"';
                     equals += 2;
+                } else if (*equals == '"') {
+                    // Closing quote found
+                    equals++;
+                    in_banner_section = 1;
+                    break;
                 } else {
                     banner[banner_length++] = *equals++;
                 }
             }
             banner[banner_length] = '\0';
-            in_banner_section = 1;
-            break;
-        } else {
-            printf("banner as banner not found");
+
+
+            // If we didn't find the closing quote, we're in a multi-line banner
+            if (!in_banner_section) {
+                multi_line_banner = 1;
+            }
+            continue;
+        }
+
+        // Handle multi-line banner content
+        if (multi_line_banner) {
+            char* content_start = trimmed;
+            char* quote_pos = strchr(content_start, '"');
+
+            // If we find a closing quote on this line
+            if (quote_pos) {
+                // Copy content until the closing quote
+                while (content_start < quote_pos && banner_length < MAX_BANNER_LENGTH - 1) {
+                    if (*content_start == '\\' && *(content_start + 1) == '"') {
+                        banner[banner_length++] = '"';
+                        content_start += 2;
+                    } else {
+                        banner[banner_length++] = *content_start++;
+                    }
+                }
+                banner[banner_length] = '\0';
+                in_banner_section = 1;
+                break;
+            } else {
+                // Copy the entire line
+                while (*content_start && banner_length < MAX_BANNER_LENGTH - 1) {
+                    if (*content_start == '\\' && *(content_start + 1) == '"') {
+                        banner[banner_length++] = '"';
+                        content_start += 2;
+                    } else {
+                        banner[banner_length++] = *content_start++;
+                    }
+                }
+                
+            }
+            banner[banner_length] = '\0';
         }
     }
 
