@@ -22,8 +22,9 @@ int run_server(server_options_t options) {
 
     char addr[64];
     snprintf(addr, sizeof(addr), "%s:%d",
-         *options.webserver_ip,
+         options.webserver_ip ? options.webserver_ip : "127.0.0.1",
          options.webserver_port);
+
 
 
     struct mg_connection *nc =
