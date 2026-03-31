@@ -3,7 +3,7 @@
 #include "../../common/src/prompts/prompts.h"
 #include "events_handler.h"
 #include "html_renderer.h"
-#include "options.h"
+#include "main.h"
 #include <string.h>
 
 static struct mg_mgr mgr;
@@ -17,18 +17,16 @@ struct route {
 static const char *s_http_port = "127.0.0.1:8181";
 
 /* Fonction fondamentale */
-int run_server(server_options_t options) {
+int run_server(app_context_t *ctx) {
     mg_mgr_init(&mgr); /* Initialize Mongoose event manager */
 
     char addr[64];
     snprintf(addr, sizeof(addr), "%s:%d",
-         options.webserver_ip ? options.webserver_ip : "127.0.0.1",
-         options.webserver_port);
-
-
+         *ctx->options->webserver_ip ? *ctx->options->webserver_ip : "127.0.0.1",
+         ctx->options->webserver_port);
 
     struct mg_connection *nc =
-        mg_http_listen(&mgr, addr, events_handler, NULL);
+        mg_http_listen(&mgr, addr, events_handler, &ctx);
 
     if (!nc)
         return 1;
@@ -44,12 +42,16 @@ int run_server(server_options_t options) {
 
 int main(int argc, char *argv[]) {
     server_options_t options;
+    variables_t variables;
 
+    app_context_t *ctx = malloc(sizeof(app_context_t));
+    ctx->options = &options;
+    ctx->vars = &variables;
 
-    if (init(argc, argv, &options) != 0) {
+    if (init(argc, argv, &ctx) != 0) {
         return 1;
     }
 
-    run_server(options);
+    run_server(&ctx);
     return 0;
 }

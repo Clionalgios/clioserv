@@ -8,7 +8,7 @@
 #define CLEAR_SCREEN "\x1B[2J\x1B[H"
 #define STARTUP_BANNER ""
 
-void init(int argc, char *argv[], struct options *options) {
+void init(int argc, char *argv[], struct options *options, struct variables *variables) {
     printf(CLEAR_SCREEN);
 
     printf(STARTUP_BANNER);

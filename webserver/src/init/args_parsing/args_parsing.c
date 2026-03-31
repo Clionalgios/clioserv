@@ -3,7 +3,7 @@
 #include <string.h>
 #include <getopt.h>
 
-#include "options.h"
+#include "main.h"
 #include "init.h"   // doit contenir server_options_t
 
 void set_default_options(server_options_t *opt) {

@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "events_handler.h" 
+#include "main.h"
 #include <mongoose.h>
 
 /*
@@ -31,6 +32,8 @@ int match_uri(struct mg_str *uri, const char *pattern) {
 void events_handler(struct mg_connection *nc, int ev, void *ev_data) {
     if (ev != MG_EV_HTTP_MSG) return;
 
+    app_context_t *ctx = (app_context_t *) nc->fn_data;
+
     struct mg_http_message *hm = (struct mg_http_message *) ev_data;
 
     if (mg_strcmp(hm->method, mg_str("GET")) != 0) {
@@ -40,5 +43,5 @@ void events_handler(struct mg_connection *nc, int ev, void *ev_data) {
         return;  // ✅ PAS return 1
     }
 
-    router_dispatch(nc, hm);
+    router_dispatch(nc, hm, ctx);
 }

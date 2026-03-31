@@ -5,6 +5,7 @@
 #include "router.h"
 #include "events_handler.h"
 #include "renderer/html_renderer.h"
+#include "main.h"
 
 static void reply_500(struct mg_connection *nc) {
     mg_http_reply(nc,
@@ -13,28 +14,19 @@ static void reply_500(struct mg_connection *nc) {
                   "Internal Server Error");
 }
 
-static int handle_banner(struct mg_connection *nc,
+static char* handle_banner(struct mg_connection *nc,
                          struct mg_http_message *hm) {
 
     if (!match_uri(&hm->uri, "/banner.txt"))
-        return 0;
+        return NULL;
 
     char* banner = get_server_banner();
 
     if (banner == NULL) {
-        mg_http_reply(nc, 500,
-                      "Content-Type: text/plain\r\n",
-                      "Error: Could not retrieve server banner\n");
-        return 1;
+        return NULL;
     }
 
-    mg_http_reply(nc, 200,
-                  "Content-Type: text/plain; charset=utf-8\r\n",
-                  "%.*s\n",
-                  (int)strlen(banner), banner);
-
-    free(banner);
-    return 1;
+    return banner;
 }
 
 
@@ -55,14 +47,13 @@ static int handle_favicon(struct mg_connection *nc,
     return 1;
 }
 
-static void handle_dynamic(struct mg_connection *nc,
+static char* handle_dynamic(struct mg_connection *nc,
                            struct mg_http_message *hm) {
 
     char url[256];
 
     if (hm->uri.len >= sizeof(url)) {
-        reply_500(nc);
-        return;
+        return NULL;
     }
 
     snprintf(url, sizeof(url), "%.*s",
@@ -75,24 +66,39 @@ static void handle_dynamic(struct mg_connection *nc,
     char *response = compose_page(url, NULL, lang, "<TODOstyle_sheet>");
 
     if (!response) {
-        reply_500(nc);
-        return;
+        return NULL;
     }
 
-    mg_http_reply(nc,
-                  200,
-                  "Content-Type: text/html\r\n",
-                  "%s",
-                  response);
-
-    free(response);
+    return response;
 }
 
 void router_dispatch(struct mg_connection *nc,
-                     struct mg_http_message *hm) {
+                     struct mg_http_message *hm, app_context_t *ctx) {
 
-    if (handle_banner(nc, hm)) return;
     if (handle_favicon(nc, hm)) return;
 
-    handle_dynamic(nc, hm);
+    char* content = NULL;
+
+    content = handle_banner(nc, hm);
+    if (content == NULL) {
+        content = handle_dynamic(nc, hm);
+        if (content == NULL) {
+            reply_500(nc);
+            return;
+        }
+    }
+
+    char* headers = snprintf(NULL, 0,
+        "Server: %s\r\nContent-Type: text/html; charset=utf-8\r\n",
+        *ctx->vars->banner) + 1;
+
+
+    mg_http_reply(nc, 200,
+                  headers,
+                  "%.*s\n",
+                  (int)strlen(content), content);
+
+    free(content);
+    free(headers);
+    return 1;
 }
