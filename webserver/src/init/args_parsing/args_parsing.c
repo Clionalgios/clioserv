@@ -4,6 +4,7 @@
 #include <getopt.h>
 
 #include "main.h"
+#include "args_parsing.h"
 #include "init.h"   // doit contenir server_options_t
 
 void set_default_options(server_options_t *opt) {
@@ -25,7 +26,7 @@ void print_help(const char *prog) {
     printf("  -h, --help              Show this help\n");
 }
 
-int parse_arguments(int argc, char *argv[], server_options_t *opt) {
+int parse_arguments(int argc, char *argv[], app_context_t *ctx) {
     int option_index = 0;
 
     static struct option long_options[] = {
@@ -38,26 +39,26 @@ int parse_arguments(int argc, char *argv[], server_options_t *opt) {
         {0, 0, 0, 0}
     };
 
-    set_default_options(opt);
+    set_default_options(ctx->options);
 
     int c;
     while ((c = getopt_long(argc, argv, "c:p:vh", long_options, &option_index)) != -1) {
         switch (c) {
 
             case 'c':
-                opt->config_file = optarg;
+                ctx->options->config_file = optarg;
                 break;
 
             case 'p':
-                opt->webserver_port = atoi(optarg);
-                if (opt->webserver_port <= 0 || opt->webserver_port > 65535) {
+                ctx->options->webserver_port = atoi(optarg);
+                if (ctx->options->webserver_port <= 0 || ctx->options->webserver_port > 65535) {
                     fprintf(stderr, "Invalid port: %s\n", optarg);
                     return -1;
                 }
                 break;
 
             case 'v':
-                opt->verbose = 1;
+                ctx->options->verbose = 1;
                 break;
 
             case 'h':
@@ -66,10 +67,10 @@ int parse_arguments(int argc, char *argv[], server_options_t *opt) {
 
             case 0:
                 if (strcmp(long_options[option_index].name, "ip") == 0) {
-                    opt->webserver_ip = optarg;
+                    ctx->options->webserver_ip = optarg;
 
                 } else if (strcmp(long_options[option_index].name, "env") == 0) {
-                    opt->env = optarg;
+                    ctx->options->env = optarg;
                 }
                 break;
 

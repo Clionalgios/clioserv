@@ -4,18 +4,19 @@
 #include "getopt.h"
 #include "init.h"
 #include "logs.h"
+#include "main.h"
 
 #define CLEAR_SCREEN "\x1B[2J\x1B[H"
 #define STARTUP_BANNER ""
 
-void init(int argc, char *argv[], struct options *options, struct variables *variables) {
+void init(int argc, char *argv[], app_context_t *ctx) {
     printf(CLEAR_SCREEN);
 
     printf(STARTUP_BANNER);
 
     // TODO : parse all arguments
 
-    if (parse_arguments(argc, argv, options) != 0) {
+    if (parse_arguments(argc, argv, ctx->options) != 0) {
         fprintf(stderr, "Failed to parse arguments\n");
         exit(1);
     }

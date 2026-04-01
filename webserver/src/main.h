@@ -1,5 +1,5 @@
-#ifndef OPTIONS_H
-#define OPTIONS_H
+#ifndef MAIN_H
+#define MAIN_H
 
 typedef struct {
     char *banner;

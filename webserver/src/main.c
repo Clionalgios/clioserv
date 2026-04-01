@@ -14,19 +14,44 @@ struct route {
     const char *uri;
 };
 
-static const char *s_http_port = "127.0.0.1:8181";
-
 /* Fonction fondamentale */
 int run_server(app_context_t *ctx) {
     mg_mgr_init(&mgr); /* Initialize Mongoose event manager */
 
     char addr[64];
-    snprintf(addr, sizeof(addr), "%s:%d",
-         *ctx->options->webserver_ip ? *ctx->options->webserver_ip : "127.0.0.1",
-         ctx->options->webserver_port);
+
+    if (ctx == NULL || ctx->options == NULL) {
+        fprintf(stderr, "Invalid context\n");
+        return 1;
+    } else if (ctx->options->webserver_ip == NULL || ctx->options->webserver_ip[0] == '\0') {
+        fprintf(stderr, "Invalid webserver IP\n");
+        return 1;
+    } else if (ctx->options->webserver_port <= 0 || ctx->options->webserver_port > 65535) {
+        fprintf(stderr, "Invalid webserver port: %d\n", ctx->options->webserver_port);
+        return 1;
+    } else { // Cette condition n'est jamais atteinte
+        printf("Nothing to report here SIR");
+        // Imprimer le contneu des variables pour bonne mesure
+        printf("Webserver IP: %s\n", ctx->options->webserver_ip);
+        printf("Webserver Port: %d\n", ctx->options->webserver_port);
+    }
+    
+    const char *ip = "127.0.0.1";
+
+    // if (ctx && ctx->options && ctx->options->webserver_ip && ctx->options->webserver_ip[0] != '\0') {
+    //     ip = ctx->options->webserver_ip;
+    // }
+    
+    const char *port = "8181";
+
+    // if (ctx && ctx->options && ctx->options->webserver_port && ctx->options->webserver_port[0] != '\0') {
+    //     port = ctx->options->webserver_port;
+    // }
+
+    snprintf(addr, sizeof(addr), "%s:%d", ip, port);
 
     struct mg_connection *nc =
-        mg_http_listen(&mgr, addr, events_handler, &ctx);
+        mg_http_listen(&mgr, addr, events_handler, ctx);
 
     if (!nc)
         return 1;
