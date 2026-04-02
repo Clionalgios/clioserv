@@ -9,10 +9,10 @@ typedef struct {
     char *config_file;
 
     char *webserver_ip;
-    int webserver_port;
+    char *webserver_port;
 
     int router_mode;
-    int router_port;
+    char *router_port;
 
     int verbose;
     int debug;

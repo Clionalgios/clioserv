@@ -47,13 +47,17 @@ int main(int argc, char *argv[]) {
     variables_t variables;
 
     app_context_t *ctx = malloc(sizeof(app_context_t));
+        if (!ctx) {
+        perror("malloc");
+        return 1;
+    }
     ctx->options = &options;
     ctx->vars = &variables;
 
-    if (init(argc, argv, &ctx) != 0) {
+    if (init(argc, argv, ctx) != 0) {
         return 1;
     }
 
-    run_server(&ctx);
+    run_server(ctx);
     return 0;
 }

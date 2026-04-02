@@ -33,15 +33,7 @@ void init(int argc, char *argv[], app_context_t *ctx) {
 
     printf(STARTUP_BANNER);
 
-    // TODO : parse all arguments
-
     set_default_options(ctx);
-
-    printf("Default values set: IP=%s, Port=%s, Env=%s\n",
-           ctx->options->webserver_ip ? ctx->options->webserver_ip : "(null)",
-           ctx->options->webserver_port ? ctx->options->webserver_port : "(null)",
-           ctx->options->env ? ctx->options->env : "(null)");
-
 
     if (parse_arguments(argc, argv, ctx) != 0) {
         fprintf(stderr, "Failed to parse arguments\n");
