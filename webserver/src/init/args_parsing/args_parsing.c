@@ -5,22 +5,45 @@
 
 #include "main.h"
 #include "args_parsing.h"
-#include "init.h"   // doit contenir server_options_t
+#include "init.h"
 
-void set_default_options(server_options_t *opt) {
-    opt->config_file = "settings.conf";
-    opt->webserver_ip = "127.0.0.1";
-    opt->webserver_port = 8181;
-    opt->verbose = 0;
-    opt->env = "dev";
+// Retourne 1 si l'IP est valide, 0 sinon
+int is_ip_syntax_valid(const char *ip) {
+    if (ip == NULL) return 0;
+
+    int num, dots = 0;
+    char *ptr, *ip_copy;
+
+    ip_copy = strdup(ip);
+    if (ip_copy == NULL) return 0;
+
+    ptr = strtok(ip_copy, ".");
+    while (ptr != NULL) {
+        if (!isdigit(*ptr)) {
+            free(ip_copy);
+            return 0;
+        }
+
+        num = atoi(ptr);
+        if (num < 0 || num > 255) {
+            free(ip_copy);
+            return 0;
+        }
+
+        ptr = strtok(NULL, ".");
+        dots++;
+    }
+
+    free(ip_copy);
+    return (dots == 4) ? 1 : 0;
 }
 
 void print_help(const char *prog) {
     printf("Usage: %s [OPTIONS]\n", prog);
     printf("\nOptions:\n");
     printf("  -c, --config <file>     Configuration file\n");
+    printf("  -i, --ip <addr>         Bind address (e.g. 127.0.0.1)\n");
     printf("  -p, --port <port>       Webserver port\n");
-    printf("      --ip <addr>         Bind IP\n");
     printf("      --env <env>         Environment (dev|prod)\n");
     printf("  -v, --verbose           Enable verbose mode\n");
     printf("  -h, --help              Show this help\n");
@@ -31,30 +54,36 @@ int parse_arguments(int argc, char *argv[], app_context_t *ctx) {
 
     static struct option long_options[] = {
         {"config", required_argument, 0, 'c'},
+        {"ip", required_argument, 0, 'i'},
         {"port", required_argument, 0, 'p'},
-        {"ip", required_argument, 0, 0},
         {"env", required_argument, 0, 0},
         {"verbose", no_argument, 0, 'v'},
         {"help", no_argument, 0, 'h'},
         {0, 0, 0, 0}
     };
 
-    set_default_options(ctx->options);
-
     int c;
-    while ((c = getopt_long(argc, argv, "c:p:vh", long_options, &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, "c:i:p:vh", long_options, &option_index)) != -1) {
         switch (c) {
 
             case 'c':
                 ctx->options->config_file = optarg;
                 break;
 
+            case 'i':
+                if (!is_ip_syntax_valid(optarg)) {
+                    fprintf(stderr, "Invalid IP address: %s\n", optarg);
+                    return -1;
+                }
+                ctx->options->webserver_ip = optarg;
+                break;
+
             case 'p':
-                ctx->options->webserver_port = atoi(optarg);
                 if (ctx->options->webserver_port <= 0 || ctx->options->webserver_port > 65535) {
                     fprintf(stderr, "Invalid port: %s\n", optarg);
                     return -1;
                 }
+                ctx->options->webserver_port = atoi(optarg);
                 break;
 
             case 'v':
@@ -64,15 +93,6 @@ int parse_arguments(int argc, char *argv[], app_context_t *ctx) {
             case 'h':
                 print_help(argv[0]);
                 exit(0);
-
-            case 0:
-                if (strcmp(long_options[option_index].name, "ip") == 0) {
-                    ctx->options->webserver_ip = optarg;
-
-                } else if (strcmp(long_options[option_index].name, "env") == 0) {
-                    ctx->options->env = optarg;
-                }
-                break;
 
             default:
                 print_help(argv[0]);
