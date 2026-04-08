@@ -4,39 +4,9 @@
 #include <getopt.h>
 
 #include "main.h"
+#include "checks.h"
 #include "args_parsing.h"
 #include "init.h"
-
-// Retourne 1 si l'IP est valide, 0 sinon
-int is_ip_syntax_valid(const char *ip) {
-    if (ip == NULL) return 0;
-
-    int num, dots = 0;
-    char *ptr, *ip_copy;
-
-    ip_copy = strdup(ip);
-    if (ip_copy == NULL) return 0;
-
-    ptr = strtok(ip_copy, ".");
-    while (ptr != NULL) {
-        if (!isdigit(*ptr)) {
-            free(ip_copy);
-            return 0;
-        }
-
-        num = atoi(ptr);
-        if (num < 0 || num > 255) {
-            free(ip_copy);
-            return 0;
-        }
-
-        ptr = strtok(NULL, ".");
-        dots++;
-    }
-
-    free(ip_copy);
-    return (dots == 4) ? 1 : 0;
-}
 
 void print_help(const char *prog) {
     printf("Usage: %s [OPTIONS]\n", prog);

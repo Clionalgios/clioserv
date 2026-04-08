@@ -35,14 +35,13 @@ void init(int argc, char *argv[], app_context_t *ctx) {
 
     set_default_options(ctx);
 
+    // TODO : load configuration
+    // load_configuration(&options.config_file)
+
     if (parse_arguments(argc, argv, ctx) != 0) {
         fprintf(stderr, "Failed to parse arguments\n");
         exit(1);
     }
-
-
-    // TODO : load configuration
-    // load_configuration(&options.config_file)
 
     // TODO: reset logs files
     init_logs_status_t status = init_logs(argv[0]);
