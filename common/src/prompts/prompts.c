@@ -1,10 +1,10 @@
-// prompts_time.c
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
 #include <stddef.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include "prompts.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -12,63 +12,61 @@
 #include <sys/time.h>   // struct timeval, gettimeofday()
 #endif
 
-#define TEXT "clio"
-
 #define RESET  "\x1B[0m"
 #define STYLE_BOLD  "\x1B[1m"
 #define STYLE_SLIM  "\x1B[2m"
-#define STYLE_ITALIC  "\x1B[3m"
-#define STYLE_UNDERLINED  "\x1B[4m"
-#define STYLE_SLOWBLINK  "\x1B[5m"
-#define STYLE_QUICKBLINK  "\x1B[6m"
-#define STYLE_REVERSE  "\x1B[7m"
-#define STYLE_INVISIBLE  "\x1B[8m"
-#define STYLE_CROSSED  "\x1B[9m"
+// #define STYLE_ITALIC  "\x1B[3m"
+// #define STYLE_UNDERLINED  "\x1B[4m"
+// #define STYLE_SLOWBLINK  "\x1B[5m"
+// #define STYLE_QUICKBLINK  "\x1B[6m"
+// #define STYLE_REVERSE  "\x1B[7m"
+// #define STYLE_INVISIBLE  "\x1B[8m"
+// #define STYLE_CROSSED  "\x1B[9m"
 
-#define BLACK "\x1B[30m"
+// #define BLACK "\x1B[30m"
 #define RED  "\x1B[31m"
 #define GREEN  "\x1B[32m"
 #define YELLOW  "\x1B[33m"
-#define BLUE  "\x1B[34m"
-#define MAGENTA  "\x1B[35m"
-#define CYAN  "\x1B[36m"
-#define WHITE  "\x1B[37m"
+// #define BLUE  "\x1B[34m"
+// #define MAGENTA  "\x1B[35m"
+// #define CYAN  "\x1B[36m"
+// #define WHITE  "\x1B[37m"
 
-#define V_BLACK "\x1B[90m"
-#define V_RED  "\x1B[91m"
-#define V_GREEN  "\x1B[92m"
-#define V_YELLOW  "\x1B[93m"
-#define V_BLUE  "\x1B[94m"
-#define V_MAGENTA  "\x1B[95m"
-#define V_CYAN  "\x1B[96m"
-#define V_WHITE  "\x1B[97m"
+// #define V_BLACK "\x1B[90m"
+// #define V_RED  "\x1B[91m"
+// #define V_GREEN  "\x1B[92m"
+// #define V_YELLOW  "\x1B[93m"
+// #define V_BLUE  "\x1B[94m"
+// #define V_MAGENTA  "\x1B[95m"
+// #define V_CYAN  "\x1B[96m"
+// #define V_WHITE  "\x1B[97m"
 
-#define BG_BLACK "\x1B[40m"
-#define BG_RED  "\x1B[41m"
-#define BG_GREEN  "\x1B[42m"
-#define BG_YELLOW  "\x1B[43m"
-#define BG_BLUE  "\x1B[44m"
-#define BG_MAGENTA  "\x1B[45m"
-#define BG_CYAN  "\x1B[46m"
-#define BG_WHITE  "\x1B[47m"
+// #define BG_BLACK "\x1B[40m"
+// #define BG_RED  "\x1B[41m"
+// #define BG_GREEN  "\x1B[42m"
+// #define BG_YELLOW  "\x1B[43m"
+// #define BG_BLUE  "\x1B[44m"
+// #define BG_MAGENTA  "\x1B[45m"
+// #define BG_CYAN  "\x1B[46m"
+// #define BG_WHITE  "\x1B[47m"
 
-#define V_BLACK "\x1B[90m"
-#define V_RED  "\x1B[91m"
-#define V_GREEN  "\x1B[92m"
-#define V_YELLOW  "\x1B[93m"
-#define V_BLUE  "\x1B[94m"
-#define V_MAGENTA  "\x1B[95m"
-#define V_CYAN  "\x1B[96m"
-#define V_WHITE  "\x1B[97m"
+// #define V_BLACK "\x1B[90m"
+// #define V_RED  "\x1B[91m"
+// #define V_GREEN  "\x1B[92m"
+// #define V_YELLOW  "\x1B[93m"
+// #define V_BLUE  "\x1B[94m"
+// #define V_MAGENTA  "\x1B[95m"
+// #define V_CYAN  "\x1B[96m"
+// #define V_WHITE  "\x1B[97m"
 
-#define BG_V_BLACK "\x1B[100m"
-#define BG_V_RED  "\x1B[101m"
-#define BG_V_GREEN  "\x1B[102m"
-#define BG_V_YELLOW  "\x1B[103m"
-#define BG_V_BLUE  "\x1B[104m"
-#define BG_V_MAGENTA  "\x1B[105m"
-#define BG_V_CYAN  "\x1B[106m"
-#define BG_V_WHITE  "\x1B[107m"
+// #define BG_V_BLACK "\x1B[100m"
+// #define BG_V_RED  "\x1B[101m"
+// #define BG_V_GREEN  "\x1B[102m"
+// #define BG_V_YELLOW  "\x1B[103m"
+// #define BG_V_BLUE  "\x1B[104m"
+// #define BG_V_MAGENTA  "\x1B[105m"
+// #define BG_V_CYAN  "\x1B[106m"
+// #define BG_V_WHITE  "\x1B[107m"
 
 static FILE *g_session_log = NULL;
 
@@ -87,12 +85,12 @@ static const struct {
     [PROMPT_ERROR] = { "ERROR", RED    }
 };
 
-void prompt_set_logfile(FILE *fp)
+void prompt_set_logfile(FILE *fp) // TODO ressemble à une fonction pas finie si je ne me trompe pas
 {
     g_session_log = fp;
 }
 
-void log_current_time(char *buf, size_t buf_size)
+static void log_current_time(char *buf, size_t buf_size)
 {
     if (buf == NULL || buf_size == 0) return;
 

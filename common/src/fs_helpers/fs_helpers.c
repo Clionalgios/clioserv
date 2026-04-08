@@ -1,8 +1,11 @@
 /* fs_helpers : filesystem helpers. Provides functions aimed to solves various folders and files. Used first for logging operations. */
 
 #include <sys/stat.h>
+#include <stdio.h>
 #include "fs_helpers.h"
 #include "prompts.h"
+
+#define MAX_PATH 4096
 
 /* Checks if there is a directory. */
 int ensure_directory(const char *path) {

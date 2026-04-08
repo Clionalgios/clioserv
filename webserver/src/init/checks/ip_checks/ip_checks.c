@@ -3,21 +3,6 @@
 #include <ctype.h>
 #include <string.h>
 
-int is_local_interface_address(const char *addr) {
-    if (!addr) return 0;
-
-    // Récupérer la liste des interfaces réseau de la machine
-        // Version Linux : utiliser getifaddrs()
-        // Version Windows : utiliser GetAdaptersAddresses()
-
-    // Vérifier si l'adresse correspond à une adresse d'interface locale
-        // Comparer avec les adresses IPv4 et IPv6 des interfaces
-
-    // Vérifier les adresses de loopback
-
-    return 0; // Retourner 1 si c'est une adresse d'interface locale, sinon 0
-}
-
 static int is_hex_digit(char c)
 {
     return (isdigit((unsigned char)c) ||
@@ -131,6 +116,23 @@ static int is_valid_ipv6(const char *ip)
 
     return groups == 8;
 }
+
+int is_local_interface_address(const char *addr) {
+    if (!addr) return 0;
+
+    // Récupérer la liste des interfaces réseau de la machine
+        // Version Linux : utiliser getifaddrs()
+        // Version Windows : utiliser GetAdaptersAddresses()
+
+    // Vérifier si l'adresse correspond à une adresse d'interface locale
+        // Comparer avec les adresses IPv4 et IPv6 des interfaces
+
+    // Vérifier les adresses de loopback
+
+    return 0; // Retourner 1 si c'est une adresse d'interface locale, sinon 0
+}
+
+
 
 int is_ip_valid(const char *ip) {
     if (!ip) return 0;
