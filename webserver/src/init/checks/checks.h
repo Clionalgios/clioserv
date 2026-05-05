@@ -1,0 +1,1 @@
+int is_ip_syntax_valid(const char *ip);

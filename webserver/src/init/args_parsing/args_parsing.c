@@ -4,7 +4,7 @@
 #include <getopt.h>
 
 #include "main.h"
-#include "checks.h"
+#include "ip_checks.h"
 #include "args_parsing.h"
 #include "init.h"
 
@@ -43,6 +43,10 @@ int parse_arguments(int argc, char *argv[], app_context_t *ctx) {
             case 'i':
                 if (!is_ip_syntax_valid(optarg)) {
                     fprintf(stderr, "Invalid IP address: %s\n", optarg);
+                    return -1;
+                }
+                if (!is_ip_valid(optarg)) {
+                    fprintf(stderr, "IP address not valid on this machine: %s\n", optarg);
                     return -1;
                 }
                 ctx->options->webserver_ip = optarg;

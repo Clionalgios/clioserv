@@ -13,4 +13,6 @@ struct in6_addr {
     unsigned char   s6_addr[16];
 };
 
+int is_ip_syntax_valid(const char *ip);
+
 #endif

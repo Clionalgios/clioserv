@@ -2,6 +2,40 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+
+#define MAX_IPS 64
+#define MAX_IP_LEN 64
+
+char **extract_ips_linux(const char *input, int *count) {
+    char **ips = malloc(MAX_IPS * sizeof(char *));
+    *count = 0;
+
+    const char *cursor = input;
+
+    while ((cursor = strstr(cursor, "inet ")) != NULL) {
+        cursor += 5; // skip "inet "
+
+        const char *end = strchr(cursor, '/');
+        if (!end) break;
+
+        size_t len = end - cursor;
+        if (len >= MAX_IP_LEN) len = MAX_IP_LEN - 1;
+
+        ips[*count] = malloc(MAX_IP_LEN);
+        strncpy(ips[*count], cursor, len);
+        ips[*count][len] = '\0';
+
+        (*count)++;
+        if (*count >= MAX_IPS) break;
+
+        cursor = end;
+    }
+
+    return ips;
+}
 
 static int is_hex_digit(char c)
 {
@@ -120,8 +154,30 @@ static int is_valid_ipv6(const char *ip)
 int is_local_interface_address(const char *addr) {
     if (!addr) return 0;
 
+
+
+    
+
     // Récupérer la liste des interfaces réseau de la machine
         // Version Linux : utiliser getifaddrs()
+    #ifdef __linux__
+        FILE *fp = popen("ip a", "r");
+        if (!fp) return 1;
+
+        char buffer[8192] = {0};
+        fread(buffer, 1, sizeof(buffer) - 1, fp);
+        pclose(fp);
+
+        int count = 0;
+        char **ips = extract_ips_linux(buffer, &count);
+
+        for (int i = 0; i < count; i++) {
+            printf("IP %d: %s\n", i + 1, ips[i]);
+            free(ips[i]);
+        }
+        free(ips);
+    #endif
+        printf("Windows et autres OS non supportés pour le moment\n");
         // Version Windows : utiliser GetAdaptersAddresses()
 
     // Vérifier si l'adresse correspond à une adresse d'interface locale
@@ -140,13 +196,22 @@ int is_ip_valid(const char *ip) {
     struct in4_addr ipv4;
     struct in6_addr ipv6;
 
+    is_local_interface_address(ip);
+
     // Test IPv4
-    if (is_ipv4_syntax_valid(ip)) {
+
+    return 0;
+}
+
+int is_ip_syntax_valid(const char *addr) {
+    if (!addr) return 0;
+
+    if (is_valid_ipv4(addr)) {
         return 1;
     }
 
     // Test IPv6
-    if (is_ipv6_syntax_valid(ip)) {
+    if (is_valid_ipv6(addr)) {
         return 1;
     }
 
