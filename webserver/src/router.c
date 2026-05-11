@@ -62,6 +62,7 @@ static char* handle_dynamic(struct mg_connection *nc,
 
     // TODO: récupérer langue proprement plus tard
     const char *lang = "fr";
+    char *media = "desktop"; // TODO la prise en compte du type d'appareil du client
 
     char *response = compose_page(url, NULL, lang, "<TODOstyle_sheet>");
 

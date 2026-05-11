@@ -17,7 +17,7 @@ struct response {
     struct templates *tpl;
 };
 
-char *compose_page(const char *url, const char *media, const char *language, const char *style_sheet);
+char *compose_page(char *url, char *media, char *language, char *style_sheet);
 
 
 #endif

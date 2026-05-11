@@ -116,7 +116,7 @@ void fetch_element(const char *element, char **response) {
     free(placeholder);
 }
 
-void compose_overlay(char **response, const char **language) {
+void compose_overlay(char *response, char *language) {
     const char *overlay_elements[4] = {
         "layout",
         "header",
@@ -134,9 +134,9 @@ void compose_overlay(char **response, const char **language) {
 }
 
 // The returned string must be freed by the caller.
-char *compose_page(const char *url, const char *media, const char *language, const char *style_sheet) { // à remettre dans le bloc webserver
-    printf("%s", &media); // TODO la prise en compte du type d'appareil du client
-    printf("%s", &style_sheet); // TODO la même pour le style
+char *compose_page(char *url, char *media, char *language, char *style_sheet) { // à remettre dans le bloc webserver
+    printf("%s", media); // TODO la prise en compte du type d'appareil du client
+    printf("%s", style_sheet); // TODO la même pour le style
     char *response = "{{{body}}}";
     fetch_element("body", &response);
 

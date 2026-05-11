@@ -28,7 +28,7 @@ void set_default_options(app_context_t *ctx) {
     ctx->options->env = "dev";
 }
 
-void init(int argc, char *argv[], app_context_t *ctx) {
+int init(int argc, char *argv[], app_context_t *ctx) {
     printf(CLEAR_SCREEN);
 
     printf(STARTUP_BANNER);

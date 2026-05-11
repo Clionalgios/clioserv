@@ -151,25 +151,80 @@ static int is_valid_ipv6(const char *ip)
     return groups == 8;
 }
 
+char **extract_ips_windows(const char *input, int *count) {
+    char **ips = malloc(MAX_IPS * sizeof(char *));
+    *count = 0;
+
+    char *copy = strdup(input);
+    char *line = strtok(copy, "\n");
+
+    while (line) {
+        // On filtre uniquement les lignes pertinentes
+        if (strstr(line, "IPv4") || strstr(line, "IPv6")) {
+
+            char *p = line;
+
+            // Cherche début d’une IP
+            while (*p) {
+                if (isalnum(*p)) {
+                    char buffer[MAX_IP_LEN] = {0};
+                    int i = 0;
+
+                    while (*p && !isspace(*p) && *p != '(' && *p != '%') {
+                        if (i < MAX_IP_LEN - 1)
+                            buffer[i++] = *p;
+                        p++;
+                    }
+                    buffer[i] = '\0';
+
+                    // Nettoyage des trucs comme "(Preferred)"
+                    char *end = buffer;
+                    while (*end && *end != '(')
+                        end++;
+                    *end = '\0';
+
+                    // Validation IP
+                    if (is_valid_ipv4(buffer) || is_valid_ipv6(buffer)) {
+                        ips[*count] = strdup(buffer);
+                        (*count)++;
+
+                        if (*count >= MAX_IPS)
+                            break;
+                    }
+                } else {
+                    p++;
+                }
+            }
+        }
+
+        line = strtok(NULL, "\n");
+    }
+
+    free(copy);
+    return ips;
+}
+
 int is_local_interface_address(const char *addr) {
     if (!addr) return 0;
 
 
 
     
+    FILE *fp;
+    char buffer[8192] = {0};
+    int count = 0;
+    char **ips = NULL;
 
     // Récupérer la liste des interfaces réseau de la machine
         // Version Linux : utiliser getifaddrs()
     #ifdef __linux__
-        FILE *fp = popen("ip a", "r");
+        fp = popen("ip a", "r");
         if (!fp) return 1;
 
-        char buffer[8192] = {0};
         fread(buffer, 1, sizeof(buffer) - 1, fp);
         pclose(fp);
 
-        int count = 0;
-        char **ips = extract_ips_linux(buffer, &count);
+        **ips = extract_ips_linux(buffer, &count);
 
         for (int i = 0; i < count; i++) {
             printf("IP %d: %s\n", i + 1, ips[i]);
@@ -177,8 +232,18 @@ int is_local_interface_address(const char *addr) {
         }
         free(ips);
     #endif
-        printf("Windows et autres OS non supportés pour le moment\n");
-        // Version Windows : utiliser GetAdaptersAddresses()
+        fp = popen("ipconfig /all", "r");
+        if (!fp) return 1;
+
+
+        fread(buffer, 1, sizeof(buffer) - 1, fp);
+        pclose(fp);
+        **ips = extract_ips_windows(buffer, &count);
+        for (int i = 0; i < count; i++) {
+            printf("IP %d: %s\n", i + 1, ips[i]);
+            free(ips[i]);
+        }
+        free(ips);
 
     // Vérifier si l'adresse correspond à une adresse d'interface locale
         // Comparer avec les adresses IPv4 et IPv6 des interfaces

@@ -4,6 +4,7 @@
 #include "events_handler.h"
 #include "html_renderer.h"
 #include "main.h"
+#include "init/init.h"
 #include <string.h>
 
 static struct mg_mgr mgr;
