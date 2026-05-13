@@ -94,7 +94,7 @@ void fetch_content(const char **language, char **page) {
 }
 
 
-void fetch_element(const char *element, char **response) {
+void fetch_element(char **element, char **response) {
     char *filename = malloc(strlen("./website_assets/html/") + strlen(element) + 1);
     if (filename == NULL) {
         return;
@@ -109,26 +109,26 @@ void fetch_element(const char *element, char **response) {
 
     char *placeholder = malloc(strlen(element) + 6);
     sprintf(placeholder, "{{{%s}}}", element);
-    *response = strreplace(*response, placeholder, content);
+    *response = strreplace(&response, placeholder, content);
     
     free(content);
     free(filename);
     free(placeholder);
 }
 
-void compose_overlay(char *response, char *language) {
+void compose_overlay(char **response, char **language) {
     const char *overlay_elements[4] = {
         "layout",
         "header",
         "footer"
     };
 
-    // printf("Current state of response : %s\n", *response);
+    printf("Current state of response : %s\n", *response);
 
     for (int i = 0; i < 3; i++) {
-        // printf("Fetching overlay element: %s\n", overlay_elements[i]);
-        fetch_element(overlay_elements[i], response);
-        // printf("Current state of response : %s\n", *response);
+        printf("Fetching overlay element: %s\n", overlay_elements[i]);
+        fetch_element(overlay_elements[i], &response);
+        printf("Current state of response : %s\n", *response);
     }
     fetch_content(language, response);
 }
@@ -137,8 +137,10 @@ void compose_overlay(char *response, char *language) {
 char *compose_page(char *url, char *media, char *language, char *style_sheet) { // à remettre dans le bloc webserver
     printf("%s", media); // TODO la prise en compte du type d'appareil du client
     printf("%s", style_sheet); // TODO la même pour le style
-    char *response = "{{{body}}}";
-    fetch_element("body", &response);
+    char *response = strdup("{{{body}}}");
+
+    
+    fetch_element("body", response);
 
     struct templates *tpl = malloc(sizeof(struct templates));
     if (tpl == NULL) {
@@ -160,32 +162,62 @@ char *compose_page(char *url, char *media, char *language, char *style_sheet) { 
     }
     sprintf(filename, "./website_assets/html/%s", url);
     printf("Loading main template from file: %s\n", filename);
+    // Vérifier que le fichier existe et est lisible avant de tenter de le lire
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("File not found: %s\n", filename);
+        free(filename);
+        free(tpl);
+        return NULL;
+    }
     tpl->main_template = read_file_content(filename);
     if (tpl->main_template == NULL) {
         free(tpl->main_template);
+        printf("Template not generable, loading 404 template instead.\n");
         tpl->main_template = read_file_content("./website_assets/html/404.html");
-        printf("File not found, loading 404 template instead.\n");
+        if (tpl->main_template == NULL) {
+            printf("Failed to load 404 template. Returning NULL.\n");
+            free(tpl->main_template);
+            free(filename);
+            free(tpl);
+            return NULL;
+        }
     }
     printf("Main template content: \n%s\n", tpl->main_template ? tpl->main_template : "NULL");
+    printf("Main template printed\n");
     // FERMETURE DU BLOC DE CONTENU
 
     // OUVERTURE DU BLOC D'ASSEMBLAGE
     char *tmp;
 
-    tmp = strreplace(response, "{{{main}}}", tpl->main_template);
+    printf("Replacing main template placeholder with content.\n");
+    printf("Response before main template replacement: \n=====\n%s\n=====\n", response ? response : "NULL");
+    printf("Main template content: \n=====\n%s\n=====\n", tpl->main_template ? tpl->main_template : "NULL");
+    tmp = strreplace(response, "{{{main}}}", tpl->main_template); // ERREUR ICI, réponse devient un micmac de l'erreur 404. D'où vient les morceaux de 404 ?
+    if (tmp == NULL) {
+        printf("Failed to replace main template placeholder.\n");
+    }
+    
 
     if (tpl->main_template != NULL) {
         free(tpl->main_template);
     }
-    free(filename);
-    free(tpl);
+    if (filename != NULL) {
+        free(filename);
+    }
+    if (tpl != NULL) {
+        free(tpl);
+    }
     // FERMETURE DU BLOC D'ASSEMBLAGE
+
     if (tmp == NULL) {
         free(response);
+        free(tmp);
         return NULL;
     } else {
         response = tmp;
     }
+    printf("Final response: \n%s\n", response ? response : "NULL");
 
     return response;
 }

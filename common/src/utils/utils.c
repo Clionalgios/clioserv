@@ -7,6 +7,7 @@
 #define MAX_BANNER_LENGTH 4096
 #define MAX_LINE_LENGTH 1024
 
+// Fonction commune (bloc utils)
 char *strreplace(char *s, const char *s1, const char *s2) {
     char *result;
     int i, cnt = 0;

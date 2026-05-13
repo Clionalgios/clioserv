@@ -1,6 +1,8 @@
 #ifndef INIT_H
 #define INIT_H
 
+#include "main.h"
+
 // États possibles lors de l'initialisation
 typedef enum {
     INIT_OK = 0,
