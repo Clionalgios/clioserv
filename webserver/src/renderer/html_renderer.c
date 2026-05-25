@@ -20,8 +20,7 @@ void fetch_content(const char **language, char **page) {
 
                 // Séparer element et content_name
                 char *underscore_pos = strchr(key, '_');
-                if (underscore_pos == NULL) {
-                    printf("Invalid key format: %s\n", key);
+                if (!underscore_pos) {
                     free(key);
                     continue;
                 }
@@ -61,7 +60,7 @@ void fetch_content(const char **language, char **page) {
                     // Récupérer la langue demandée
                     cJSON *lang_value = cJSON_GetObjectItemCaseSensitive(entry, *language);
                     if (cJSON_IsString(lang_value) && (lang_value->valuestring != NULL)) {
-                        printf("Replacing key %s with value: %s\n", key, lang_value->valuestring);
+                        // printf("Replacing key %s with value: %s\n", key, lang_value->valuestring);
 
                         // Construire la nouvelle page avec la valeur substituée
                         size_t before_len = (&(*page)[i]) - *page;
@@ -77,6 +76,7 @@ void fetch_content(const char **language, char **page) {
 
                             free(*page);
                             *page = new_page;
+                            page_length = strlen(*page);
 
                             // Avancer l’index pour continuer après la valeur insérée
                             i = before_len + strlen(lang_value->valuestring) - 1;
@@ -94,28 +94,68 @@ void fetch_content(const char **language, char **page) {
 }
 
 
-void fetch_element(char **element, char **response) {
-    char *filename = malloc(strlen("./website_assets/html/") + strlen(element) + 1);
-    if (filename == NULL) {
-        return;
-    }
-    sprintf(filename, "./website_assets/html/%s.html", element);
+int fetch_element(const char *element, char **response) {
+
+    size_t filename_len =
+        snprintf(NULL, 0,
+                 "./website_assets/html/%s.html",
+                 element);
+
+    char *filename = malloc(filename_len + 1);
+
+    if (!filename)
+        return -1;
+
+    snprintf(filename,
+             filename_len + 1,
+             "./website_assets/html/%s.html",
+             element);
 
     char *content = read_file_content(filename);
-    if (content == NULL) {
-        free(filename);
-        return;
+
+    free(filename);
+
+    if (!content)
+        return -1;
+
+    size_t placeholder_len =
+        snprintf(NULL, 0,
+                 "{{{%s}}}",
+                 element);
+
+    char *placeholder = malloc(placeholder_len + 1);
+
+    if (!placeholder) {
+        free(content);
+        return -1;
     }
 
-    char *placeholder = malloc(strlen(element) + 6);
-    sprintf(placeholder, "{{{%s}}}", element);
-    *response = strreplace(&response, placeholder, content);
-    
-    free(content);
-    free(filename);
+    snprintf(placeholder,
+             placeholder_len + 1,
+             "{{{%s}}}",
+             element);
+
+    char *new_response =
+        strreplace(*response,
+                   placeholder,
+                   content);
+
     free(placeholder);
+    free(content);
+
+    if (!new_response)
+        return -1;
+
+    if (!new_response)
+    return -1;
+
+// free(*response);
+    *response = new_response;
+
+    return 0;
 }
 
+// Compose la page en assemblant les éléments d'overlay et le contenu principal, en fonction de l'URL, du type de média, de la langue et du style demandé. Utilise les fonctions fetch_element et fetch_content
 void compose_overlay(char **response, char **language) {
     const char *overlay_elements[4] = {
         "layout",
@@ -123,24 +163,28 @@ void compose_overlay(char **response, char **language) {
         "footer"
     };
 
-    printf("Current state of response : %s\n", *response);
+
+    printf("Initial state of response : %s\n", *response);
 
     for (int i = 0; i < 3; i++) {
-        printf("Fetching overlay element: %s\n", overlay_elements[i]);
-        fetch_element(overlay_elements[i], &response);
-        printf("Current state of response : %s\n", *response);
+        // printf("Fetching overlay element: %s\n", overlay_elements[i]);
+        if (fetch_element(overlay_elements[i], response) != 0) {
+            printf("Failed to fetch overlay element: %s\n", overlay_elements[i]);
+        }
+        // printf("Current state of response : %s\n", *response);
     }
     fetch_content(language, response);
 }
 
 // The returned string must be freed by the caller.
 char *compose_page(char *url, char *media, char *language, char *style_sheet) { // à remettre dans le bloc webserver
-    printf("%s", media); // TODO la prise en compte du type d'appareil du client
-    printf("%s", style_sheet); // TODO la même pour le style
+    printf("%s", media ? media : "(null)");
+    printf("%s", style_sheet ? style_sheet : "(null)");
     char *response = strdup("{{{body}}}");
 
     
-    fetch_element("body", response);
+    fetch_element("body", &response);
+
 
     struct templates *tpl = malloc(sizeof(struct templates));
     if (tpl == NULL) {
@@ -161,7 +205,7 @@ char *compose_page(char *url, char *media, char *language, char *style_sheet) { 
         return NULL;
     }
     sprintf(filename, "./website_assets/html/%s", url);
-    printf("Loading main template from file: %s\n", filename);
+    // printf("Loading main template from file: %s\n", filename);
     // Vérifier que le fichier existe et est lisible avant de tenter de le lire
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
@@ -183,17 +227,18 @@ char *compose_page(char *url, char *media, char *language, char *style_sheet) { 
             return NULL;
         }
     }
-    printf("Main template content: \n%s\n", tpl->main_template ? tpl->main_template : "NULL");
-    printf("Main template printed\n");
+    // printf("Main template content: \n%s\n", tpl->main_template ? tpl->main_template : "NULL");
+    // printf("Main template printed\n");
+    fclose(file);
     // FERMETURE DU BLOC DE CONTENU
 
     // OUVERTURE DU BLOC D'ASSEMBLAGE
     char *tmp;
 
-    printf("Replacing main template placeholder with content.\n");
-    printf("Response before main template replacement: \n=====\n%s\n=====\n", response ? response : "NULL");
-    printf("Main template content: \n=====\n%s\n=====\n", tpl->main_template ? tpl->main_template : "NULL");
-    tmp = strreplace(response, "{{{main}}}", tpl->main_template); // ERREUR ICI, réponse devient un micmac de l'erreur 404. D'où vient les morceaux de 404 ?
+    // printf("Replacing main template placeholder with content.\n");
+    // printf("Response before main template replacement: \n=====\n%s\n=====\n", response ? response : "NULL");
+    // printf("Main template content: \n=====\n%s\n=====\n", tpl->main_template ? tpl->main_template : "NULL");
+    tmp = strreplace(response, "{{{main}}}", tpl->main_template);
     if (tmp == NULL) {
         printf("Failed to replace main template placeholder.\n");
     }
@@ -212,7 +257,6 @@ char *compose_page(char *url, char *media, char *language, char *style_sheet) { 
 
     if (tmp == NULL) {
         free(response);
-        free(tmp);
         return NULL;
     } else {
         response = tmp;

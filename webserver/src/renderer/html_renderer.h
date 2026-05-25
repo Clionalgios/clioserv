@@ -18,6 +18,6 @@ struct response {
 };
 
 char *compose_page(char *url, char *media, char *language, char *style_sheet);
-
+int fetch_element(const char *element, char **response);
 
 #endif
