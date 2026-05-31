@@ -1,23 +1,12 @@
 #ifndef HTML_RENDERER_H
 #define HTML_RENDERER_H
 
-struct overlay_templates {
-    char *layout_template;
-    char *header_template;
-    char *footer_template;
-};
+char *compose_page(const char *url,
+                   const char *media,
+                   const char *language,
+                   const char *style_sheet);
 
-struct templates {
-    struct overlay_templates *overlay;
-    char *main_template;
-};
+static char *resolver(const char *key, const char *language);
 
-struct response {
-    char *body;
-    struct templates *tpl;
-};
-
-char *compose_page(char *url, char *media, char *language, char *style_sheet);
-int fetch_element(const char *element, char **response);
 
 #endif

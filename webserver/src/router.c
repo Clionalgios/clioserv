@@ -89,17 +89,33 @@ void router_dispatch(struct mg_connection *nc,
         }
     }
 
-    char* headers = snprintf(NULL, 0,
-        "Server: %s\r\nContent-Type: text/html; charset=utf-8\r\n",
-        *ctx->vars->banner) + 1;
+    // ✅ SAFE BANNER
+    const char *banner = "Clioserv";
 
+    if (ctx && ctx->vars && ctx->vars->banner && *ctx->vars->banner) {
+        banner = *ctx->vars->banner;
+    }
+
+    int headers_len = snprintf(NULL, 0,
+        "Server: %s\r\nContent-Type: text/html; charset=utf-8\r\n",
+        banner);
+
+    char *headers = malloc(headers_len + 1);
+    if (!headers) {
+        free(content);
+        reply_500(nc);
+        return;
+    }
+
+    snprintf(headers, headers_len + 1,
+        "Server: %s\r\nContent-Type: text/html; charset=utf-8\r\n",
+        banner);
 
     mg_http_reply(nc, 200,
                   headers,
-                  "%.*s\n",
+                  "%.*s",
                   (int)strlen(content), content);
 
     free(content);
     free(headers);
-    return 1;
 }

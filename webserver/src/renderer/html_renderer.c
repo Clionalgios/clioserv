@@ -1,267 +1,305 @@
-#include "utils.h"
 #include "html_renderer.h"
+#include "utils.h"
 #include "cJSON.h"
+
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
-// Remplace les placeholders de contenu dans la page avec les contenus appropriés stockés dans les fichiers json correspondants aux éléments HTML, identifiés par la langue
-void fetch_content(const char **language, char **page) {
-    int page_length = strlen(*page);
-    for (int i = 0; i < page_length; i++) {
-        if (strncmp(&(*page)[i], "{{{", 3) == 0) {
-            char *end = strstr(&(*page)[i], "}}}");
-            if (end) {
-                size_t key_len = end - (&(*page)[i] + 3);
-                char *key = strndup(&(*page)[i] + 3, key_len);
-                if (key == NULL) {
-                    return;
-                }
+#define MAX_KEY_LEN 256
 
-                // Séparer element et content_name
-                char *underscore_pos = strchr(key, '_');
-                if (!underscore_pos) {
-                    free(key);
-                    continue;
-                }
-                char *element = strndup(key, underscore_pos - key);
-                char *content_name = strdup(key);
-                if (!element || !content_name) {
-                    free(key);
-                    free(element);
-                    free(content_name);
-                    return;
-                }
+// =========================
+// 🔧 UTIL
+// =========================
 
-                // Charger le JSON correspondant
-                char filename[512];
-                snprintf(filename, sizeof(filename),
-                         "./website_assets/content/%s.json", element);
+static char *read_file_safe(const char *path) {
+    FILE *f = fopen(path, "r");
+    if (!f) return NULL;
 
-                char *file_content = read_file_content(filename);
-                if (!file_content) {
-                    printf("Failed to read file: %s\n", filename);
-                    free(key); free(element); free(content_name);
-                    continue;
-                }
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    rewind(f);
 
-                // Parser le JSON
-                cJSON *json = cJSON_Parse(file_content);
-                free(file_content);
-                if (!json) {
-                    printf("JSON parse error for %s\n", filename);
-                    free(key); free(element); free(content_name);
-                    continue;
-                }
+    char *buf = malloc(size + 1);
+    if (!buf) {
+        fclose(f);
+        return NULL;
+    }
 
-                // Trouver la clé (ex: "header_welcome_text")
-                cJSON *entry = cJSON_GetObjectItemCaseSensitive(json, content_name);
-                if (entry) {
-                    // Récupérer la langue demandée
-                    cJSON *lang_value = cJSON_GetObjectItemCaseSensitive(entry, *language);
-                    if (cJSON_IsString(lang_value) && (lang_value->valuestring != NULL)) {
-                        // printf("Replacing key %s with value: %s\n", key, lang_value->valuestring);
+    fread(buf, 1, size, f);
+    buf[size] = '\0';
 
-                        // Construire la nouvelle page avec la valeur substituée
-                        size_t before_len = (&(*page)[i]) - *page;
-                        size_t after_len = strlen(end + 3);
-                        size_t new_size = before_len + strlen(lang_value->valuestring) + after_len + 1;
+    fclose(f);
+    return buf;
+}
 
-                        char *new_page = malloc(new_size);
-                        if (new_page) {
-                            strncpy(new_page, *page, before_len);
-                            new_page[before_len] = '\0';
-                            strcat(new_page, lang_value->valuestring);
-                            strcat(new_page, end + 3);
+// =========================
+// 🔧 HTML RESOLVER
+// =========================
 
-                            free(*page);
-                            *page = new_page;
-                            page_length = strlen(*page);
+static char *resolve_html(const char *key) {
+    char path[512];
+    snprintf(path, sizeof(path), "./website_assets/html/%s.html", key);
 
-                            // Avancer l’index pour continuer après la valeur insérée
-                            i = before_len + strlen(lang_value->valuestring) - 1;
-                        }
-                    }
-                }
+    char *content = read_file_safe(path);
+    if (content) {
+        printf("[HTML] %s\n", key);
+    }
+    return content;
+}
 
-                cJSON_Delete(json);
-                free(key);
-                free(element);
-                free(content_name);
+// =========================
+// 🔧 JSON RESOLVER (par fichier)
+// =========================
+
+static char *resolve_json(const char *key, const char *language) {
+    // extraire prefix (avant '_')
+    char element[128];
+    const char *underscore = strchr(key, '_');
+
+    if (!underscore) return NULL;
+
+    size_t len = underscore - key;
+    if (len >= sizeof(element)) return NULL;
+
+    memcpy(element, key, len);
+    element[len] = '\0';
+
+    char path[512];
+    snprintf(path, sizeof(path),
+             "./website_assets/content/%s.json", element);
+
+    char *file = read_file_safe(path);
+    if (!file) return NULL;
+
+    cJSON *json = cJSON_Parse(file);
+    free(file);
+
+    if (!json) return NULL;
+
+    cJSON *item = cJSON_GetObjectItemCaseSensitive(json, key);
+
+    char *result = NULL;
+
+    if (cJSON_IsObject(item)) {
+        // ✅ cas multilangue
+        cJSON *lang_node = cJSON_GetObjectItemCaseSensitive(item, language);
+
+        if (cJSON_IsString(lang_node) && lang_node->valuestring) {
+            result = strdup(lang_node->valuestring);
+            printf("[JSON:%s] %s\n", language, key);
+        } else {
+            // fallback FR
+            cJSON *fallback = cJSON_GetObjectItemCaseSensitive(item, "fr");
+
+            if (cJSON_IsString(fallback) && fallback->valuestring) {
+                result = strdup(fallback->valuestring);
+                printf("[JSON:fallback-fr] %s\n", key);
             }
         }
     }
-}
-
-
-int fetch_element(const char *element, char **response) {
-
-    size_t filename_len =
-        snprintf(NULL, 0,
-                 "./website_assets/html/%s.html",
-                 element);
-
-    char *filename = malloc(filename_len + 1);
-
-    if (!filename)
-        return -1;
-
-    snprintf(filename,
-             filename_len + 1,
-             "./website_assets/html/%s.html",
-             element);
-
-    char *content = read_file_content(filename);
-
-    free(filename);
-
-    if (!content)
-        return -1;
-
-    size_t placeholder_len =
-        snprintf(NULL, 0,
-                 "{{{%s}}}",
-                 element);
-
-    char *placeholder = malloc(placeholder_len + 1);
-
-    if (!placeholder) {
-        free(content);
-        return -1;
+    else if (cJSON_IsString(item) && item->valuestring) {
+        // ✅ cas simple (legacy)
+        result = strdup(item->valuestring);
+        printf("[JSON] %s\n", key);
     }
 
-    snprintf(placeholder,
-             placeholder_len + 1,
-             "{{{%s}}}",
-             element);
-
-    char *new_response =
-        strreplace(*response,
-                   placeholder,
-                   content);
-
-    free(placeholder);
-    free(content);
-
-    if (!new_response)
-        return -1;
-
-    if (!new_response)
-    return -1;
-
-// free(*response);
-    *response = new_response;
-
-    return 0;
+    cJSON_Delete(json);
+    return result;
 }
 
-// Compose la page en assemblant les éléments d'overlay et le contenu principal, en fonction de l'URL, du type de média, de la langue et du style demandé. Utilise les fonctions fetch_element et fetch_content
-void compose_overlay(char **response, char **language) {
-    const char *overlay_elements[4] = {
-        "layout",
-        "header",
-        "footer"
-    };
+// =========================
+// 🔧 GLOBAL RESOLVER
+// =========================
+
+static char *resolver(const char *key, const char *language) {
+    char *v;
+
+    v = resolve_html(key);
+    if (v) return v;
+
+    v = resolve_json(key, language);
+    if (v) return v;
+
+    printf("[MISS] %s\n", key);
+    return strdup("");
+}
 
 
-    printf("Initial state of response : %s\n", *response);
+// =========================
+// 🔧 RENDER CORE
+// =========================
 
-    for (int i = 0; i < 3; i++) {
-        // printf("Fetching overlay element: %s\n", overlay_elements[i]);
-        if (fetch_element(overlay_elements[i], response) != 0) {
-            printf("Failed to fetch overlay element: %s\n", overlay_elements[i]);
+static char *render(const char *template, const char *language){
+    if (!template) return NULL;
+
+    size_t cap = strlen(template) + 1;
+    char *result = malloc(cap);
+    if (!result) return NULL;
+
+    result[0] = '\0';
+
+    const char *p = template;
+
+    while (*p) {
+        const char *start = strstr(p, "{{{");
+
+        if (!start) {
+            strcat(result, p);
+            break;
         }
-        // printf("Current state of response : %s\n", *response);
+
+        strncat(result, p, start - p);
+
+        const char *end = strstr(start, "}}}");
+        if (!end) {
+            strcat(result, start);
+            break;
+        }
+
+        size_t key_len = end - (start + 3);
+
+        char key[MAX_KEY_LEN];
+        if (key_len >= MAX_KEY_LEN)
+            key_len = MAX_KEY_LEN - 1;
+
+        memcpy(key, start + 3, key_len);
+        key[key_len] = '\0';
+
+        char *value = resolver(key, language);
+
+
+        if (value) {
+            size_t needed =
+                strlen(result) +
+                strlen(value) +
+                strlen(end + 3) + 1;
+
+            if (needed > cap) {
+                cap = needed * 2;
+                result = realloc(result, cap);
+                if (!result) {
+                    free(value);
+                    return NULL;
+                }
+            }
+
+            strcat(result, value);
+            free(value);
+        }
+
+        p = end + 3;
     }
-    fetch_content(language, response);
+
+    return result;
 }
 
-// The returned string must be freed by the caller.
-char *compose_page(char *url, char *media, char *language, char *style_sheet) { // à remettre dans le bloc webserver
-    printf("%s", media ? media : "(null)");
-    printf("%s", style_sheet ? style_sheet : "(null)");
-    char *response = strdup("{{{body}}}");
+// =========================
+// 🚀 COMPOSE PAGE
+// =========================
 
-    
-    fetch_element("body", &response);
+char *compose_page(const char *url,
+                   const char *media,
+                   const char *language,
+                   const char *style_sheet) {
 
+    (void)media;
+    (void)language;
+    (void)style_sheet;
 
-    struct templates *tpl = malloc(sizeof(struct templates));
-    if (tpl == NULL) {
-        return NULL;
+    // =========================
+    // 1. Charger layout principal
+    // =========================
+
+    char *page = read_file_safe("./website_assets/html/body.html");
+    if (!page) return NULL;
+
+    // =========================
+    // 2. Charger contenu main
+    // =========================
+
+    char path[512];
+
+    char clean_url[256];
+
+    snprintf(clean_url, sizeof(clean_url), "%.*s",
+            (int)strlen(url), url);
+
+    // enlever trailing slash
+    size_t len = strlen(clean_url);
+    if (len > 1 && clean_url[len - 1] == '/')
+        clean_url[len - 1] = '\0';
+
+    // cas root
+    if (strcmp(clean_url, "/") == 0) {
+        snprintf(path, sizeof(path),
+                "./website_assets/html/mains/index.html");
+    } else {
+        snprintf(path, sizeof(path),
+                "./website_assets/html/mains%s.html", clean_url);
     }
 
-    compose_overlay(&response, &language);
 
-    // OUVERTURE DU BLOC DE CONTENU
-    if (strcmp(url, "/") == 0 || strcmp(url, "/favicon.ico") == 0) {
-        url = "index.html";
-    }
-    printf("Mapped URI to file: %s\n", url);
 
-    // Replace the "{{{main}}}" tag with the content of the file designated by the URL minus the .html extension
-    char *filename = malloc(strlen("./website_assets/html/") + strlen(url) + 1);
-    if (filename == NULL) {
-        return NULL;
-    }
-    sprintf(filename, "./website_assets/html/%s", url);
-    // printf("Loading main template from file: %s\n", filename);
-    // Vérifier que le fichier existe et est lisible avant de tenter de le lire
-    FILE *file = fopen(filename, "r");
-    if (file == NULL) {
-        printf("File not found: %s\n", filename);
-        free(filename);
-        free(tpl);
-        return NULL;
-    }
-    tpl->main_template = read_file_content(filename);
-    if (tpl->main_template == NULL) {
-        free(tpl->main_template);
-        printf("Template not generable, loading 404 template instead.\n");
-        tpl->main_template = read_file_content("./website_assets/html/404.html");
-        if (tpl->main_template == NULL) {
-            printf("Failed to load 404 template. Returning NULL.\n");
-            free(tpl->main_template);
-            free(filename);
-            free(tpl);
+    char *main_content = read_file_safe(path);
+
+    if (!main_content) {
+        printf("Fallback to 404 for %s\n", path);
+        main_content = read_file_safe("./website_assets/html/404.html");
+        if (!main_content) {
+            free(page);
             return NULL;
         }
     }
-    // printf("Main template content: \n%s\n", tpl->main_template ? tpl->main_template : "NULL");
-    // printf("Main template printed\n");
-    fclose(file);
-    // FERMETURE DU BLOC DE CONTENU
 
-    // OUVERTURE DU BLOC D'ASSEMBLAGE
+    // =========================
+    // 3. Injecter {{{main}}}
+    // =========================
+
     char *tmp;
 
-    // printf("Replacing main template placeholder with content.\n");
-    // printf("Response before main template replacement: \n=====\n%s\n=====\n", response ? response : "NULL");
-    // printf("Main template content: \n=====\n%s\n=====\n", tpl->main_template ? tpl->main_template : "NULL");
-    tmp = strreplace(response, "{{{main}}}", tpl->main_template);
-    if (tmp == NULL) {
-        printf("Failed to replace main template placeholder.\n");
-    }
-    
+    // remplacer {{{main}}} à la main (simple et safe)
+    char *placeholder = "{{{main}}}";
+    char *pos = strstr(page, placeholder);
 
-    if (tpl->main_template != NULL) {
-        free(tpl->main_template);
-    }
-    if (filename != NULL) {
-        free(filename);
-    }
-    if (tpl != NULL) {
-        free(tpl);
-    }
-    // FERMETURE DU BLOC D'ASSEMBLAGE
+    if (pos) {
+        size_t before_len = pos - page;
+        size_t after_len = strlen(pos + strlen(placeholder));
 
-    if (tmp == NULL) {
-        free(response);
-        return NULL;
-    } else {
-        response = tmp;
-    }
-    printf("Final response: \n%s\n", response ? response : "NULL");
+        size_t new_size = before_len + strlen(main_content) + after_len + 1;
 
-    return response;
+        tmp = malloc(new_size);
+        if (!tmp) {
+            free(page);
+            free(main_content);
+            return NULL;
+        }
+
+        memcpy(tmp, page, before_len);
+        memcpy(tmp + before_len, main_content, strlen(main_content));
+        memcpy(tmp + before_len + strlen(main_content),
+               pos + strlen(placeholder),
+               after_len);
+
+        tmp[new_size - 1] = '\0';
+
+        free(page);
+        page = tmp;
+    }
+
+    free(main_content);
+
+    // =========================
+    // 4. Résolution récursive
+    // =========================
+
+    for (int i = 0; i < 3; i++) {
+        tmp = render(page, language);
+        free(page);
+        page = tmp;
+    }
+
+    // printf("Final response:\n%s\n", page);
+
+    return page;
 }
