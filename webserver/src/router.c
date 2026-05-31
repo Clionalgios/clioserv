@@ -47,6 +47,88 @@ static int handle_favicon(struct mg_connection *nc,
     return 1;
 }
 
+static int print_request(struct mg_connection *nc,
+                         struct mg_http_message *hm) {
+
+    if (&hm->uri != NULL && hm->method.buf != NULL && hm->method.len != 0) {
+        printf("Received request: %.*s %.*s\n",
+           (int)hm->method.len, hm->method.buf,
+           (int)hm->uri.len, hm->uri.buf);
+           return 0;
+    } else {
+        printf("Warning, request received invalid: missing method or URI");
+        return -1;
+    }
+}
+
+
+
+// static int handle_set_lang(struct mg_connection *nc,
+//                            struct mg_http_message *hm) {
+
+//     const char *prefix = "/set-lang/";
+
+//     // ✅ Vérifier que l'URI match
+//     if (hm->uri.len < strlen(prefix)) return 0;
+//     if (strncmp(hm->uri.buf, prefix, strlen(prefix)) != 0) return 0;
+
+//     // ✅ Extraire la langue
+//     const char *start = hm->uri.buf + strlen(prefix);
+//     const char *end = hm->uri.buf + hm->uri.len;
+
+//     if (end > start && *(end - 1) == '/') {
+//         end--;
+//     }
+
+//     size_t len = end - start;
+
+//     if (len == 0 || len >= 16) return 0;
+
+//     char lang[16];
+//     memcpy(lang, start, len);
+//     lang[len] = '\0';
+
+//     // ✅ Validation stricte
+//     if (strcmp(lang, "fr") != 0 &&
+//         strcmp(lang, "en") != 0 &&
+//         strcmp(lang, "de") != 0 &&
+//         strcmp(lang, "uk") != 0 &&
+//         strcmp(lang, "eo") != 0) {
+//         return 0;
+//     }
+
+//     // ✅ Récupérer le redirect depuis la query
+//     char redirect[512] = "/";
+
+//     if (hm->query.len > 0) {
+//         char value[512];
+
+//         if (mg_http_get_var(&hm->query, "redirect", value, sizeof(value)) > 0) {
+//             snprintf(redirect, sizeof(redirect), "%s", value);
+//         }
+//     }
+
+//     // ✅ Debug propre
+//     printf("Set-Lang: %s | Redirect: %s\n", lang, redirect);
+
+//     char* response = compose_page(redirect, NULL, lang, "<TODOstyle_sheet>");
+//     if (!response) {
+//         reply_500(nc);
+//         return 1;
+//     }
+
+//     mg_http_reply(nc, 200,
+//                   "Content-Type: text/html; charset=utf-8\r\nSet-Cookie: clio-lang=%s; Path=/; HttpOnly\r\n",
+//                   lang,
+//                   "%.*s",
+//                   (int)strlen(response), response);
+
+
+//     return 1;
+// }
+
+
+
 static char* handle_dynamic(struct mg_connection *nc,
                            struct mg_http_message *hm) {
 
@@ -60,11 +142,20 @@ static char* handle_dynamic(struct mg_connection *nc,
              (int) hm->uri.len,
              hm->uri.buf);
 
-    // TODO: récupérer langue proprement plus tard
-    const char *lang = "fr";
+    char *lang = NULL;
+    get_cookie_value(hm, "clio-lang", &lang);
+
+    if (!lang) {
+        lang = strdup("fr"); // fallback propre
+    }
+
+
+    // DEBUG FUNC : if (print_request(nc, hm)) != 0) return NULL;
+
     char *media = "desktop"; // TODO la prise en compte du type d'appareil du client
 
     char *response = compose_page(url, NULL, lang, "<TODOstyle_sheet>");
+    free(lang);
 
     if (!response) {
         return NULL;
@@ -77,6 +168,8 @@ void router_dispatch(struct mg_connection *nc,
                      struct mg_http_message *hm, app_context_t *ctx) {
 
     if (handle_favicon(nc, hm)) return;
+    // if (handle_set_lang(nc, hm)) return;
+
 
     char* content = NULL;
 
@@ -107,10 +200,12 @@ void router_dispatch(struct mg_connection *nc,
         return;
     }
 
+    // Charge le header avec le banner (ou la valeur par défaut)
     snprintf(headers, headers_len + 1,
         "Server: %s\r\nContent-Type: text/html; charset=utf-8\r\n",
         banner);
 
+    // Renvoit la page demandée
     mg_http_reply(nc, 200,
                   headers,
                   "%.*s",
