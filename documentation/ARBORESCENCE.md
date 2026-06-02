@@ -7,7 +7,10 @@
 /
 └── Page d'accueil du site web
 
-/whoami/
+/{lang}/*
+└── Langue correspondante pour chaque page, au début de l'URL
+
+*/whoami/
 ├── Introduction *Petit paragraphe pour me présenter*
 ├── Background *Récit biographique d'un paragraphe ou deux de taille moyenne pour expliquer ce qui m'a amené dans la cybersécurité*
 ├── Projects *Liste des projets réalisés dont pendant les études*
@@ -18,7 +21,7 @@
 ├── Accounts *Lien vers les comptes HackTheBox, RootMe, Ozintopia, etc*
 └── Contact *Informations de contact*
 
-/blog/
+*/blog/
 ├── /blog/browse/{page_number} *Liste des articles avec barre de recherches*
 │   ├── Barre de recherche
 │   │   ├── Moteur de recherche par opérateurs
@@ -60,28 +63,24 @@
 │   └── Articles similaires
 └── /blog/rss.{lang}
 
-/revival/
+*/revival/
 ├── Lien vers le manifeste de l'internet revival
 └── The Internet Revival Gateway *Mozaïque de liens-images vers des sites web indépendants, sous forme de tableau*
     └── *Pour chaque objet*
         └── Image-lien
 
-/legal/ *To be defined, and i'm not in a hurry*
+*/legal/ *To be defined, and i'm not in a hurry*
 
-/privacy/ *To be defined, and i'm not in a hurry*
+*/privacy/ *To be defined, and i'm not in a hurry*
 
-/cookies/ *To be defined, and i'm not in a hurry*
+*/cookies/ *To be defined, and i'm not in a hurry*
 
-/404 *To be defined*
+*/404 *To be defined*
 
-/500 *To be defined*
-
+*/500 *To be defined*
 /sitemap.xml
 
 /robots.txt
-
-*/{lang}/
-└── Langue correspondante pour chaque page, à la fin de l'URL
 
 /set-lang/{lang}/
 

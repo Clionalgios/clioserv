@@ -16,8 +16,13 @@ static char *api_server = "http://127.0.0.1:8282";
 struct fetch_result {
     char *body;
     size_t body_len;
+
+    int status_code;
+    char headers[2048];
+
     int done;
 };
+
 
 const char *head_bloc_content = "<!DOCTYPE html>\n"
                                  "<html lang=\"fr\">\n"
@@ -29,18 +34,80 @@ const char *head_bloc_content = "<!DOCTYPE html>\n"
                                  "{{{body}}}\n"
                                  "</html>";
 
+static int is_html_response(struct fetch_result *res) {
+    if (!res) return 0;
+
+    // Cherche Content-Type dans les headers
+    const char *ct = strstr(res->headers, "Content-Type:");
+    if (!ct) return 0;
+
+    // Vérifie si text/html est présent
+    if (strstr(ct, "text/html") != NULL) {
+        return 1;
+    }
+
+    return 0;
+}
+
+static void forward_raw_response(struct mg_connection *nc, struct fetch_result *res) {
+    if (!res) return;
+
+    mg_printf(nc,
+        "HTTP/1.1 %d\r\n"
+        "%s"
+        "Content-Length: %zu\r\n"
+        "\r\n",
+        res->status_code,
+        res->headers,
+        res->body_len);
+
+    if (res->body_len > 0 && res->body) {
+        mg_send(nc, res->body, res->body_len);
+    }
+}
+
 // Handler utilisé par mg_http_connect
 static void fetch_ev_handler(struct mg_connection *c, int ev, void *ev_data) {
     struct fetch_result *res = (struct fetch_result *) c->fn_data;
 
     if (ev == MG_EV_HTTP_MSG) {
-        struct mg_http_message *http_message = (struct mg_http_message *) ev_data;
-        res->body = malloc(http_message->body.len + 1);
-        if (res->body) {
-            memcpy(res->body, http_message->body.buf, http_message->body.len);
-            res->body[http_message->body.len] = '\0';
-            res->body_len = http_message->body.len;
+        struct mg_http_message *hm = (struct mg_http_message *) ev_data;
+
+        res->status_code = mg_http_status(hm);
+
+        // ✅ reconstruire les headers
+        res->headers[0] = '\0';
+
+        for (int i = 0; i < MG_MAX_HTTP_HEADERS && hm->headers[i].name.len > 0; i++) {
+
+            struct mg_str name = hm->headers[i].name;
+
+            // ❌ skip headers dangereux
+            if (mg_strcasecmp(name, mg_str("Content-Length")) == 0 ||
+                mg_strcasecmp(name, mg_str("Transfer-Encoding")) == 0 ||
+                mg_strcasecmp(name, mg_str("Connection")) == 0) {
+                continue;
+            }
+
+            strncat(res->headers,
+                hm->headers[i].name.buf,
+                hm->headers[i].name.len);
+            strcat(res->headers, ": ");
+            strncat(res->headers,
+                hm->headers[i].value.buf,
+                hm->headers[i].value.len);
+            strcat(res->headers, "\r\n");
         }
+
+
+        // body (comme avant)
+        res->body = malloc(hm->body.len + 1);
+        if (res->body) {
+            memcpy(res->body, hm->body.buf, hm->body.len);
+            res->body[hm->body.len] = '\0';
+            res->body_len = hm->body.len;
+        }
+
         res->done = 1;
         c->is_closing = 1;
     } else if (ev == MG_EV_CLOSE) {
@@ -237,10 +304,43 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
         }
 
         if (response.result.body) {
-            // not_found(nc, http_message);
-            // On emballe la réponse dans le template HTML head bloc content
-            set_response_in_html_overlay(&response);
-            mg_http_reply(nc, 200, "Content-Type: text/html\r\n", "%s", response.result.body);
+
+            // ✅ 1. REDIRECTION → forward brut
+            if (response.result.status_code >= 300 && response.result.status_code < 400) {
+                forward_raw_response(nc, &response.result);
+                free(response.result.body);
+                return;
+            }
+
+            // ✅ 2. NON HTML → forward brut
+            if (!is_html_response(&response.result)) {
+                forward_raw_response(nc, &response.result);
+                free(response.result.body);
+                return;
+            }
+
+            // ✅ 3. HTML 200 → overlay
+            if (response.result.status_code == 200) {
+                set_response_in_html_overlay(&response);
+
+                mg_printf(nc,
+                    "HTTP/1.1 200 OK\r\n"
+                    "%s"
+                    "Content-Length: %zu\r\n"
+                    "\r\n",
+                    response.result.headers,
+                    response.result.body_len);
+
+                if (response.result.body_len > 0) {
+                    mg_send(nc, response.result.body, response.result.body_len);
+                }
+
+                free(response.result.body);
+                return;
+            }
+
+            // ✅ 4. fallback (ex: 404 HTML)
+            forward_raw_response(nc, &response.result);
             free(response.result.body);
             return;
         } else {

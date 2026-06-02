@@ -33,6 +33,37 @@ static char *read_file_safe(const char *path) {
     return buf;
 }
 
+static char *str_replace(const char *str, const char *old, const char *new) {
+    size_t str_len = strlen(str);
+    size_t old_len = strlen(old);
+    size_t new_len = strlen(new);
+
+    // Compter le nombre d'occurrences de old dans str
+    size_t count = 0;
+    for (const char *p = str; (p = strstr(p, old)) != NULL; p += old_len) {
+        count++;
+    }
+
+    // Calculer la taille de la nouvelle chaîne
+    size_t new_str_len = str_len + count * (new_len - old_len) + 1;
+    char *new_str = malloc(new_str_len);
+    if (!new_str) return NULL;
+
+    // Construire la nouvelle chaîne
+    char *dest = new_str;
+    for (const char *p = str; (p = strstr(p, old)) != NULL; p += old_len) {
+        size_t segment_len = p - str;
+        memcpy(dest, str, segment_len);
+        dest += segment_len;
+        memcpy(dest, new, new_len);
+        dest += new_len;
+        str = p + old_len;
+    }
+    strcpy(dest, str);
+
+    return new_str;
+}
+
 // =========================
 // 🔧 HTML RESOLVER
 // =========================
@@ -333,6 +364,9 @@ char *compose_page(const char *url,
         free(page);
         page = tmp;
     }
+
+    page = str_replace(page, "{{current_path}}", url);
+    page = str_replace(page, "{{current_lang}}", language);
 
     return page;
 }
