@@ -12,6 +12,14 @@ static char *server_port = "8080";
 static char *web_server = "http://127.0.0.1:8181";
 static char *api_server = "http://127.0.0.1:8282";
 
+struct proxy_stream {
+    struct mg_connection *client;
+    struct mg_connection *upstream;
+
+    int headers_sent;
+};
+
+
 // Structure pour passer les données de réponse
 struct fetch_result {
     char *body;
@@ -65,6 +73,122 @@ static void forward_raw_response(struct mg_connection *nc, struct fetch_result *
         mg_send(nc, res->body, res->body_len);
     }
 }
+
+static void proxy_stream_handler(struct mg_connection *c, int ev, void *ev_data) {
+    struct proxy_stream *ps = (struct proxy_stream *) c->fn_data;
+
+    if (!ps) return;
+
+    switch (ev) {
+
+        case MG_EV_CONNECT:
+            // Rien à faire ici
+            break;
+
+        case MG_EV_READ:
+            if (ps->client) {
+                // 🔥 streaming direct
+                mg_send(ps->client, c->recv.buf, c->recv.len);
+                mg_iobuf_del(&c->recv, 0, c->recv.len);
+            }
+            break;
+
+        case MG_EV_CLOSE:
+            if (ps->client) {
+                ps->client->is_closing = 1;
+            }
+            free(ps);
+            break;
+    }
+}
+
+static void proxy_stream_request(struct mg_connection *client,
+                                 char *base_url,
+                                 struct mg_http_message *request) {
+
+    char url[256];
+    snprintf(url, sizeof(url), "%s%.*s",
+             base_url,
+             (int) request->uri.len,
+             request->uri.buf);
+
+    struct proxy_stream *ps = calloc(1, sizeof(*ps));
+    if (!ps) {
+        mg_http_reply(client, 500, "", "Memory error");
+        return;
+    }
+
+    ps->client = client;
+
+    struct mg_connection *up = mg_http_connect(&mgr, url, proxy_stream_handler, ps);
+    if (!up) {
+        free(ps);
+        mg_http_reply(client, 502, "", "Bad Gateway");
+        return;
+    }
+
+    ps->upstream = up;
+
+    // Requête HTTP
+    mg_printf(up, "%.*s %.*s HTTP/1.1\r\n",
+              (int) request->method.len, request->method.buf,
+              (int) request->uri.len, request->uri.buf);
+
+    for (int i = 0; i < MG_MAX_HTTP_HEADERS && request->headers[i].name.len > 0; i++) {
+        if (mg_strcmp(request->headers[i].name, mg_str("Host")) == 0) continue;
+
+        mg_printf(up, "%.*s: %.*s\r\n",
+                  (int) request->headers[i].name.len, request->headers[i].name.buf,
+                  (int) request->headers[i].value.len, request->headers[i].value.buf);
+    }
+
+    mg_printf(up, "Host: %s\r\n", base_url + strlen("http://"));
+    mg_printf(up, "Connection: close\r\n\r\n");
+
+    if (request->body.len > 0) {
+        mg_send(up, request->body.buf, request->body.len);
+    }
+}
+
+static int str_starts_with(struct mg_str s, const char *prefix) {
+    size_t len = strlen(prefix);
+    return s.len >= len && strncmp(s.buf, prefix, len) == 0;
+}
+
+static int str_contains(struct mg_str s, const char *needle) {
+    // mg_str n'est pas null-terminated → on copie
+    char *tmp = malloc(s.len + 1);
+    if (!tmp) return 0;
+
+    memcpy(tmp, s.buf, s.len);
+    tmp[s.len] = '\0';
+
+    int found = strstr(tmp, needle) != NULL;
+
+    free(tmp);
+    return found;
+}
+
+static int should_stream(struct mg_str uri) {
+
+    // ✅ API
+    if (str_starts_with(uri, "/api")) return 1;
+
+    // ✅ fichiers statiques
+    if (str_contains(uri, ".css") ||
+        str_contains(uri, ".js") ||
+        str_contains(uri, ".png") ||
+        str_contains(uri, ".jpg") ||
+        str_contains(uri, ".jpeg") ||
+        str_contains(uri, ".gif") ||
+        str_contains(uri, ".webp")) {
+        return 1;
+    }
+
+    return 0;
+}
+
+
 
 // Handler utilisé par mg_http_connect
 static void fetch_ev_handler(struct mg_connection *c, int ev, void *ev_data) {
@@ -293,6 +417,13 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
             // TODO penser à adapter quand on aura plusieurs services
             target_server = api_server;
         }
+
+        // ✅ MODE STREAMING
+        if (should_stream(uri)) {
+            proxy_stream_request(nc, target_server, http_message);
+            return;
+        }
+
 
         // On passe : l'adresse du serveur web, l'URI de la requête et le message HTTP complet
         response = request_to_server(target_server, &uri, &http_message);
