@@ -20,6 +20,59 @@ static void reply_500(struct mg_connection *nc) {
                   "Internal Server Error");
 }
 
+static const char* detect_best_lang(struct mg_http_message *hm) {
+
+    struct mg_str *hdr = mg_http_get_header(hm, "Accept-Language");
+
+    if (!hdr || hdr->len == 0) {
+        return "fr";
+    }
+
+    char buf[128];
+
+    size_t len = hdr->len < sizeof(buf) - 1 ? hdr->len : sizeof(buf) - 1;
+    memcpy(buf, hdr->buf, len);
+    buf[len] = '\0';
+
+    // Exemple : "en-US,en;q=0.9,fr;q=0.8"
+
+    if (strncmp(buf, "fr", 2) == 0) return "fr";
+    if (strncmp(buf, "en", 2) == 0) return "en";
+    if (strncmp(buf, "de", 2) == 0) return "de";
+    if (strncmp(buf, "uk", 2) == 0) return "uk";
+    if (strncmp(buf, "eo", 2) == 0) return "eo";
+
+    // fallback
+    return "fr";
+}
+
+static int handle_root_language_redirect(struct mg_connection *nc,
+                                         struct mg_http_message *hm) {
+
+    struct mg_str uri = hm->uri;
+
+    // ✅ uniquement "/"
+    if (!(uri.len == 1 && uri.buf[0] == '/')) {
+        return 0;
+    }
+
+    const char *lang = detect_best_lang(hm);
+
+    char location[16];
+    snprintf(location, sizeof(location), "/%s/", lang);
+
+    printf("[LANG] Auto-detect → %s\n", location);
+
+    mg_printf(nc,
+        "HTTP/1.1 302 Found\r\n"
+        "Location: %s\r\n"
+        "Content-Length: 0\r\n\r\n",
+        location);
+
+    return 1;
+}
+
+
 static char* handle_banner(struct mg_connection *nc,
                          struct mg_http_message *hm) {
 
@@ -265,6 +318,99 @@ int remove_lang_from_url(char *url) {
     return 0;
 }
 
+static int is_valid_lang_prefix(struct mg_str uri) {
+    if (uri.len < 3) return 0;
+
+    char lang[3] = {0};
+    memcpy(lang, uri.buf + 1, 2);
+
+    if (uri.buf[0] != '/' || uri.buf[3] != '/') return 0;
+
+    return (strcmp(lang, "fr") == 0 ||
+            strcmp(lang, "en") == 0 ||
+            strcmp(lang, "de") == 0 ||
+            strcmp(lang, "uk") == 0 ||
+            strcmp(lang, "eo") == 0);
+}
+
+static int is_lang_only(struct mg_str uri, char *out_lang) {
+    // format attendu : "/fr" (len = 3)
+    if (uri.len != 3) return 0;
+    if (uri.buf[0] != '/') return 0;
+
+    memcpy(out_lang, uri.buf + 1, 2);
+    out_lang[2] = '\0';
+
+    return (strcmp(out_lang, "fr") == 0 ||
+            strcmp(out_lang, "en") == 0 ||
+            strcmp(out_lang, "de") == 0 ||
+            strcmp(out_lang, "uk") == 0 ||
+            strcmp(out_lang, "eo") == 0);
+}
+
+static int handle_lang_without_slash(struct mg_connection *nc,
+                                     struct mg_http_message *hm) {
+
+    char lang[3];
+
+    if (!is_lang_only(hm->uri, lang)) {
+        return 0;
+    }
+
+    char location[16];
+    snprintf(location, sizeof(location), "/%s/", lang);
+
+    printf("[LANG] Fix missing trailing slash → %s\n", location);
+
+    mg_printf(nc,
+        "HTTP/1.1 301 Moved Permanently\r\n"
+        "Location: %s\r\n"
+        "Content-Length: 0\r\n\r\n",
+        location);
+
+    return 1;
+}
+
+
+static int handle_missing_lang(struct mg_connection *nc,
+                               struct mg_http_message *hm) {
+
+    struct mg_str uri = hm->uri;
+
+    // ✅ déjà une langue → rien à faire
+    if (is_valid_lang_prefix(uri)) {
+        return 0;
+    }
+
+    // ✅ cas spécial : "/"
+    if (uri.len == 1 && uri.buf[0] == '/') {
+        mg_printf(nc,
+            "HTTP/1.1 302 Found\r\n"
+            "Location: /fr/\r\n"
+            "Content-Length: 0\r\n\r\n");
+        return 1;
+    }
+
+    // ✅ sinon → préfixer
+    char location[512];
+
+    snprintf(location, sizeof(location),
+             "/fr%.*s",
+             (int) uri.len,
+             uri.buf);
+
+    printf("[LANG] Missing lang → redirect to %s\n", location);
+
+    mg_printf(nc,
+        "HTTP/1.1 302 Found\r\n"
+        "Location: %s\r\n"
+        "Content-Length: 0\r\n\r\n",
+        location);
+
+    return 1;
+}
+
+
 static char* handle_dynamic(struct mg_connection *nc, struct mg_http_message*hm) {
 // static struct response* handle_dynamic(struct mg_connection *nc,
                         //    struct mg_http_message *hm) {
@@ -335,12 +481,17 @@ void router_dispatch(struct mg_connection *nc,
 
 
     if (handle_favicon(nc, hm)) return;
-    // if (handle_set_lang(nc, hm)) return;
-    if (handle_set_lang(nc, hm)) {
-    printf("[ROUTER] handle_set_lang handled request\n");
-    return;
-}
 
+    if (handle_set_lang(nc, hm)) return;
+
+    // ✅ /fr → /fr/
+    if (handle_lang_without_slash(nc, hm)) return;
+
+    // ✅ auto détect langue sur "/"
+    if (handle_root_language_redirect(nc, hm)) return;
+
+    // ✅ fallback langue manquante
+    if (handle_missing_lang(nc, hm)) return;
 
 
     char* content = NULL;
