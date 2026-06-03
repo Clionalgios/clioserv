@@ -2,6 +2,7 @@
 #define EVENTS_HANDLER_H
 
 #include <mongoose.h>
+#include "context.h"
 
 struct mg_connection;
 struct mg_http_message;

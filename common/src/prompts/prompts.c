@@ -1,9 +1,8 @@
-#include <stdio.h>
-#include <time.h>
-#include <string.h>
-#include <stddef.h>
-#include <stdarg.h>
-#include <stdio.h>
+// #include <stdio.h>
+// #include <time.h>
+// #include <string.h>
+// #include <stddef.h>
+// #include <stdarg.h>
 #include "prompts.h"
 
 #ifdef _WIN32
@@ -29,7 +28,7 @@
 #define YELLOW  "\x1B[33m"
 // #define BLUE  "\x1B[34m"
 // #define MAGENTA  "\x1B[35m"
-// #define CYAN  "\x1B[36m"
+#define CYAN  "\x1B[36m"
 // #define WHITE  "\x1B[37m"
 
 // #define V_BLACK "\x1B[90m"
@@ -73,7 +72,8 @@ static FILE *g_session_log = NULL;
 typedef enum {
     PROMPT_OK,
     PROMPT_INFO,
-    PROMPT_ERROR
+    PROMPT_ERROR,
+    PROMPT_DEBUG
 } prompt_level_t;
 
 static const struct {
@@ -82,7 +82,8 @@ static const struct {
 } prompt_meta[] = {
     [PROMPT_OK]    = { "OK",    GREEN  },
     [PROMPT_INFO]  = { "INFO",  YELLOW },
-    [PROMPT_ERROR] = { "ERROR", RED    }
+    [PROMPT_ERROR] = { "ERROR", RED    },
+    [PROMPT_DEBUG] = { "DEBUG", CYAN }
 };
 
 void prompt_set_logfile(FILE *fp) // TODO ressemble à une fonction pas finie si je ne me trompe pas
@@ -177,5 +178,13 @@ void error_prompt(const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
     prompt_internal(PROMPT_ERROR, fmt, args);
+    va_end(args);
+}
+
+void debug_prompt(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    prompt_internal(PROMPT_DEBUG, fmt, args);
     va_end(args);
 }

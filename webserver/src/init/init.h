@@ -1,7 +1,7 @@
 #ifndef INIT_H
 #define INIT_H
 
-#include "main.h"
+#include "context.h"
 
 // États possibles lors de l'initialisation
 typedef enum {

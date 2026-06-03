@@ -1,34 +1,38 @@
-#ifndef MAIN_H
-#define MAIN_H
+// #ifndef MAIN_H
+// #define MAIN_H
 
-typedef struct {
-    char *banner;
-} variables_t;
+// #include "../../common/dependencies/mongoose/mongoose.h"
 
-typedef struct {
-    char *config_file;
+// typedef struct {
+//     char *banner;
+// } variables_t;
 
-    char *webserver_ip;
-    char *webserver_port;
+// typedef struct {
+//     char *config_file;
 
-    int router_mode;
-    char *router_port;
+//     char *webserver_ip;
+//     char *webserver_port;
 
-    int verbose;
-    int debug;
+//     int router_mode;
+//     char *router_port;
 
-    int dry_run;
+//     int verbose;
+//     int debug;
 
-    char *log_dir;
-    int disable_logs;
+//     int dry_run;
 
-    char *env;
+//     char *log_dir;
+//     int disable_logs;
 
-} server_options_t;
+//     char *env;
 
-typedef struct {
-    server_options_t *options;
-    variables_t *vars;
-} app_context_t;
+// } server_options_t;
 
-#endif
+// typedef struct {
+//     server_options_t *options;
+//     variables_t *vars;
+//     struct mg_mgr mgr;
+//     uint8_t running;
+// } app_context_t;
+
+// #endif

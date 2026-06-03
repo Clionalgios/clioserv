@@ -2,7 +2,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "events_handler.h" 
-#include "main.h"
 #include <mongoose.h>
 
 /*

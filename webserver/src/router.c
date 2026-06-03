@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "prompts.h"
 #include "utils.h"
 #include "router.h"
 #include "events_handler.h"
@@ -371,49 +372,50 @@ static int handle_lang_without_slash(struct mg_connection *nc,
     return 1;
 }
 
-
+/* Handler pour gérer les URLs sans langue (dû à un utilisateur qui se serait cru malin ?) */
 static int handle_missing_lang(struct mg_connection *nc,
                                struct mg_http_message *hm) {
 
     struct mg_str uri = hm->uri;
+    char lang_detected[3];
+    char absolute_default_lang = 'fr';
 
-    // ✅ déjà une langue → rien à faire
+    // Vérifie si l'URL commence par une langue valide (ex: "/fr/") → si oui, pas de redirection nécessaire
     if (is_valid_lang_prefix(uri)) {
         return 0;
     }
 
-    // ✅ cas spécial : "/"
+    // Si l'URL est exactement "/" → rediriger vers "/fr/" (langue par défaut)
     if (uri.len == 1 && uri.buf[0] == '/') {
+        *lang_detected = detect_best_lang(hm)[0];
+        char location[16];
+        snprintf(location, sizeof(location), "/%s/", lang_detected);
+        printf("[LANG] Missing lang on root → redirect to %s\n", location);
         mg_printf(nc,
             "HTTP/1.1 302 Found\r\n"
-            "Location: /fr/\r\n"
-            "Content-Length: 0\r\n\r\n");
-        return 1;
+            "Location: %s\r\n"
+            "Content-Length: 0\r\n\r\n",
+            location);
     }
 
-    // ✅ sinon → préfixer
-    char location[512];
-
-    snprintf(location, sizeof(location),
-             "/fr%.*s",
-             (int) uri.len,
-             uri.buf);
-
-    printf("[LANG] Missing lang → redirect to %s\n", location);
-
-    mg_printf(nc,
-        "HTTP/1.1 302 Found\r\n"
-        "Location: %s\r\n"
-        "Content-Length: 0\r\n\r\n",
-        location);
+    // Pour les autres URLs sans langue → rediriger vers la même URL avec la langue détectée (ex: "/about" → "/fr/about")
+    else {
+        *lang_detected = detect_best_lang(hm)[0];
+        char location[512];
+        snprintf(location, sizeof(location), "/%s%.*s", lang_detected, (int)uri.len, uri.buf);
+        printf("[LANG] Missing lang on URL → redirect to %s\n", location);
+        mg_printf(nc,
+            "HTTP/1.1 302 Found\r\n"
+            "Location: %s\r\n"
+            "Content-Length: 0\r\n\r\n",
+            location);
+    }
 
     return 1;
 }
 
-
+/* Handler principal. Appelle le renderer pour générer les pages du site web. */
 static char* handle_dynamic(struct mg_connection *nc, struct mg_http_message*hm) {
-// static struct response* handle_dynamic(struct mg_connection *nc,
-                        //    struct mg_http_message *hm) {
 
     char url[256];
 
@@ -426,22 +428,18 @@ static char* handle_dynamic(struct mg_connection *nc, struct mg_http_message*hm)
              hm->uri.buf);
 
     char *lang = NULL;
-    // get_cookie_value(hm, "clio-lang", &lang); // système antérieur, à remplacer par une gestion par handler
-    // nouveau système : la langue est indiquée dans l'URL de la route, en deuxième position après le slash initial, ex: /fr/mon-url, /en/mon-url, etc. Si aucune langue n'est indiquée, on considère que c'est du français par défaut.
-
+    
     if (get_lang_from_url(url, &lang) != 0) {
         printf("Failed to extract language from URL: %s\n", url);
         return NULL;
     }
 
     if (!lang) {
-        lang = strdup("fr"); // fallback propre
+        lang = strdup("fr");
     }
 
-
-    // DEBUG FUNC : if (print_request(nc, hm)) != 0) return NULL;
-
-    char *media = "desktop"; // TODO la prise en compte du type d'appareil du client*
+    // TODO : implémenter une vraie détection du media (desktop/mobile) à partir des headers User-Agent, et injecter dans le renderer pour pouvoir faire du rendu conditionnel en fonction du media (ex: afficher un menu hamburger sur mobile, et un menu complet sur desktop)
+    char *media = "desktop";
 
     if (remove_lang_from_url(url) != 0) {
         printf("Failed to remove language from URL: %s\n", url);
@@ -458,23 +456,14 @@ static char* handle_dynamic(struct mg_connection *nc, struct mg_http_message*hm)
         return NULL;
     }
 
-    // struct response *resp = malloc(sizeof(struct response));
-    // if (!resp) {
-    //     free(response);
-    //     return NULL;
-    // }
-    // resp->content = response;
-    // resp->headers = NULL;
-    // resp->location = NULL;
-    // return resp;
-
     return response;
 }
 
 void router_dispatch(struct mg_connection *nc,
                      struct mg_http_message *hm, app_context_t *ctx) {
 
-    printf("[DEBUG] Method: %.*s\n", (int)hm->method.len, hm->method.buf);
+    debug_prompt("Method: %.*s", (int)hm->method.len, hm->method.buf);
+    // printf("[DEBUG] Method: %.*s\n", (int)hm->method.len, hm->method.buf);
 
     printf("[ROUTER] Incoming request: %.*s\n", // DEBUG toremove
        (int)hm->uri.len, hm->uri.buf); // DEBUG toremove
@@ -484,13 +473,10 @@ void router_dispatch(struct mg_connection *nc,
 
     if (handle_set_lang(nc, hm)) return;
 
-    // ✅ /fr → /fr/
     if (handle_lang_without_slash(nc, hm)) return;
 
-    // ✅ auto détect langue sur "/"
     if (handle_root_language_redirect(nc, hm)) return;
 
-    // ✅ fallback langue manquante
     if (handle_missing_lang(nc, hm)) return;
 
 
@@ -505,7 +491,7 @@ void router_dispatch(struct mg_connection *nc,
         }
     }
 
-    // ✅ SAFE BANNER
+    // banner TODO déplacer la bannière dans le fichier settings.conf, charger au démarrage du serveur dans une variable, et injecter dans le header Server de la réponse HTTP [LG]
     const char *banner = "Clioserv";
 
     if (ctx && ctx->vars && ctx->vars->banner && *ctx->vars->banner) {
@@ -523,7 +509,7 @@ void router_dispatch(struct mg_connection *nc,
         return;
     }
 
-    // Charge le header avec le banner (ou la valeur par défaut)
+    // Charge la bannière dans le header [LG]
     snprintf(headers, headers_len + 1,
         "Server: %s\r\nContent-Type: text/html; charset=utf-8\r\n",
         banner);
