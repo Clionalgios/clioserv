@@ -1,8 +1,8 @@
 #include "context.h"
-#include "events_handler.h"
+#include "../events_handler.h"
 
 /* Fonction fondamentale */
-int run_server(app_context_t *ctx) {
+uint8_t run_server(app_context_t *ctx) {
     mg_mgr_init(&ctx->mgr); /* Initialize Mongoose event manager */
 
     char addr[64];

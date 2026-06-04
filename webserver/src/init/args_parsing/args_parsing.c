@@ -3,7 +3,7 @@
 #include <string.h>
 #include <getopt.h>
 
-#include "main.h"
+#include "context.h"
 #include "ip_checks.h"
 #include "args_parsing.h"
 #include "init.h"

@@ -7,7 +7,7 @@
 // #include <string.h>
 #include "server.h"
 
-uint8_t main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
     server_options_t options;
     variables_t variables;
 

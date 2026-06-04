@@ -4,7 +4,7 @@
 #include "getopt.h"
 #include "init.h"
 #include "logs.h"
-#include "main.h"
+#include "context.h"
 
 #define CLEAR_SCREEN "\x1B[2J\x1B[H"
 #define STARTUP_BANNER ""
