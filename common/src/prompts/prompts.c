@@ -73,7 +73,8 @@ typedef enum {
     PROMPT_OK,
     PROMPT_INFO,
     PROMPT_ERROR,
-    PROMPT_DEBUG
+    PROMPT_DEBUG,
+    PROMPT_WARNING
 } prompt_level_t;
 
 static const struct {
@@ -83,7 +84,8 @@ static const struct {
     [PROMPT_OK]    = { "OK",    GREEN  },
     [PROMPT_INFO]  = { "INFO",  YELLOW },
     [PROMPT_ERROR] = { "ERROR", RED    },
-    [PROMPT_DEBUG] = { "DEBUG", CYAN }
+    [PROMPT_DEBUG] = { "DEBUG", CYAN },
+    [PROMPT_WARNING] = { "WARNING", RED }
 };
 
 void prompt_set_logfile(FILE *fp) // TODO ressemble à une fonction pas finie si je ne me trompe pas
@@ -186,5 +188,13 @@ void debug_prompt(const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
     prompt_internal(PROMPT_DEBUG, fmt, args);
+    va_end(args);
+}
+
+void warning_prompt(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    prompt_internal(PROMPT_WARNING, fmt, args);
     va_end(args);
 }

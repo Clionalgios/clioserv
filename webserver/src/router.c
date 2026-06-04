@@ -378,7 +378,7 @@ static int handle_missing_lang(struct mg_connection *nc,
 
     struct mg_str uri = hm->uri;
     char lang_detected[3];
-    char absolute_default_lang = 'fr';
+    char *absolute_default_lang = "fr";
 
     // Vérifie si l'URL commence par une langue valide (ex: "/fr/") → si oui, pas de redirection nécessaire
     if (is_valid_lang_prefix(uri)) {
@@ -491,11 +491,12 @@ void router_dispatch(struct mg_connection *nc,
         }
     }
 
-    // banner TODO déplacer la bannière dans le fichier settings.conf, charger au démarrage du serveur dans une variable, et injecter dans le header Server de la réponse HTTP [LG]
-    const char *banner = "Clioserv";
+    const char *banner = "Clioserv"; // Bannière par défaut
 
-    if (ctx && ctx->vars && ctx->vars->banner && *ctx->vars->banner) {
-        banner = *ctx->vars->banner;
+    if (app_context_get_banner(ctx)) {
+        banner = app_context_get_banner(ctx);
+    } else {
+        warning_prompt("Failed to load banner from config, using default banner: %s", banner);
     }
 
     int headers_len = snprintf(NULL, 0,

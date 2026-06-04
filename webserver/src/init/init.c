@@ -15,17 +15,12 @@ void set_default_options(app_context_t *ctx) {
         exit(1);
     }
 
-    ctx->options = malloc(sizeof(*(ctx->options)));
-    if (!ctx->options) {
-        perror("malloc");
-        exit(1);
-    }
+    app_context_set_webserver_config_file(ctx, "./config/webserver.conf");
+    app_context_set_webserver_ip(ctx, "127.0.0.1");
 
-    ctx->options->config_file = "settings.conf";
-    ctx->options->webserver_ip = "127.0.0.1";
-    ctx->options->webserver_port = "8181";
-    ctx->options->verbose = 0;
-    ctx->options->env = "dev";
+    app_context_set_webserver_port(ctx, "8181");
+    app_context_set_verbosity(ctx, 0);
+    app_context_set_env(ctx, "dev");
 }
 
 int init(int argc, char *argv[], app_context_t *ctx) {
@@ -49,7 +44,7 @@ int init(int argc, char *argv[], app_context_t *ctx) {
         init_logs_failure(status);
     }
 
-    ok_prompt("logs initialized successfully");
+    ok_prompt("Logs initialized successfully");
 
     ok_prompt("Initializing Clioserv's webserver...");
 

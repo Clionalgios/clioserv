@@ -1,5 +1,5 @@
-#ifndef _IN_ADDR_DECLARED
-#define _IN_ADDR_DECLARED
+#ifndef IP_CHECKS_H
+#define IP_CHECKS_H
 
 #include <arpa/inet.h>
 

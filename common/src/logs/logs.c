@@ -11,7 +11,7 @@ static int open_session_log(const char *logs) {
     char path[PATH_MAX]; FILE *fp;
     if (logs_create_session(logs, path, sizeof path)) return -1;
     if (!(fp = fopen(path, "a"))) return -2;
-    return prompt_set_logfile(fp), ok_prompt("session log: %s", path), 0;
+    return prompt_set_logfile(fp), ok_prompt("Session log: %s", path), 0;
 }
 
 init_logs_status_t init_logs(const char *argv0) {

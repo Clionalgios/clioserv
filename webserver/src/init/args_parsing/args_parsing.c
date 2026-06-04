@@ -4,7 +4,7 @@
 #include <getopt.h>
 
 #include "context.h"
-#include "ip_checks.h"
+// #include "ip_checks.h"
 #include "args_parsing.h"
 #include "init.h"
 
@@ -37,7 +37,7 @@ int parse_arguments(int argc, char *argv[], app_context_t *ctx) {
         switch (c) {
 
             case 'c':
-                ctx->options->config_file = optarg;
+                app_context_set_webserver_config_file(ctx, optarg);
                 break;
 
             case 'i':
@@ -49,19 +49,19 @@ int parse_arguments(int argc, char *argv[], app_context_t *ctx) {
                     fprintf(stderr, "IP address not valid on this machine: %s\n", optarg);
                     return -1;
                 }
-                ctx->options->webserver_ip = optarg;
+                app_context_set_webserver_ip(ctx, optarg);
                 break;
 
             case 'p':
-                if (ctx->options->webserver_port <= 0 || ctx->options->webserver_port > 65535) {
+                if (atoi(optarg) <= 0 || atoi(optarg) > 65535) {
                     fprintf(stderr, "Invalid port: %s\n", optarg);
                     return -1;
                 }
-                ctx->options->webserver_port = atoi(optarg);
+                app_context_set_webserver_port(ctx, optarg);
                 break;
 
             case 'v':
-                ctx->options->verbose = 1;
+                app_context_set_verbosity(ctx, 1);
                 break;
 
             case 'h':

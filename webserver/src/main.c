@@ -8,17 +8,12 @@
 #include "server.h"
 
 int main(int argc, char *argv[]) {
-    server_options_t options;
-    variables_t variables;
+    app_context_t *ctx = app_context_create();
+    if (!ctx) return 1;
 
-    app_context_t ctx;
-    ctx.options = &options;
-    ctx.vars = &variables;
-    ctx.running = 1;
-
-    if (init(argc, argv, &ctx) != 0) {
+    if (init(argc, argv, ctx) != 0) {
         return 1;
     }
 
-    return run_server(&ctx);
+    return run_server(ctx);
 }

@@ -1,32 +1,29 @@
-#include "context.h"
+#include "server.h"
+#include "../context/context.h"
 #include "../events_handler.h"
 
-/* Fonction fondamentale */
 uint8_t run_server(app_context_t *ctx) {
-    mg_mgr_init(&ctx->mgr); /* Initialize Mongoose event manager */
+
+    mg_mgr_init(app_context_get_mongoose_manager(ctx));
 
     char addr[64];
+    server_options_t *opt = app_context_get_options(ctx);
 
-    if (ctx == NULL || ctx->options == NULL) {
-        fprintf(stderr, "Invalid context\n");
-        return 1;
-    }
-
-    snprintf(addr, sizeof(addr), "%s:%s", ctx->options->webserver_ip, ctx->options->webserver_port);
+    snprintf(addr, sizeof(addr), "%s:%s",
+         app_context_get_webserver_ip(ctx),
+         app_context_get_webserver_port(ctx));
 
     struct mg_connection *nc =
-        mg_http_listen(&ctx->mgr, addr, events_handler, ctx);
+        mg_http_listen(app_context_get_mongoose_manager(ctx), addr, events_handler, ctx);
 
     if (!nc)
         return 1;
 
     ok_prompt("Listening on %s", addr);
 
-    while (ctx->running) {
-        mg_mgr_poll(&ctx->mgr, 1000);
+    while (app_context_is_running(ctx)) {
+        mg_mgr_poll(app_context_get_mongoose_manager(ctx), 1000);
     }
 
-
-    mg_mgr_free(&ctx->mgr);
     return 0;
 }
