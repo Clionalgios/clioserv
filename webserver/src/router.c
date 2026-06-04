@@ -121,72 +121,6 @@ static int print_request(struct mg_connection *nc,
     }
 }
 
-
-
-// static int handle_set_lang(struct mg_connection *nc,
-//                            struct mg_http_message *hm) {
-
-//     const char *prefix = "/set-lang/";
-
-//     // ✅ Vérifier que l'URI match
-//     if (hm->uri.len < strlen(prefix)) return 0;
-//     if (strncmp(hm->uri.buf, prefix, strlen(prefix)) != 0) return 0;
-
-//     // ✅ Extraire la langue
-//     const char *start = hm->uri.buf + strlen(prefix);
-//     const char *end = hm->uri.buf + hm->uri.len;
-
-//     if (end > start && *(end - 1) == '/') {
-//         end--;
-//     }
-
-//     size_t len = end - start;
-
-//     if (len == 0 || len >= 16) return 0;
-
-//     char lang[16];
-//     memcpy(lang, start, len);
-//     lang[len] = '\0';
-
-//     // ✅ Validation stricte
-//     if (strcmp(lang, "fr") != 0 &&
-//         strcmp(lang, "en") != 0 &&
-//         strcmp(lang, "de") != 0 &&
-//         strcmp(lang, "uk") != 0 &&
-//         strcmp(lang, "eo") != 0) {
-//         return 0;
-//     }
-
-//     // ✅ Récupérer le redirect depuis la query
-//     char redirect[512] = "/";
-
-//     if (hm->query.len > 0) {
-//         char value[512];
-
-//         if (mg_http_get_var(&hm->query, "redirect", value, sizeof(value)) > 0) {
-//             snprintf(redirect, sizeof(redirect), "%s", value);
-//         }
-//     }
-
-//     // ✅ Debug propre
-//     printf("Set-Lang: %s | Redirect: %s\n", lang, redirect);
-
-//     char* response = compose_page(redirect, NULL, lang, "<TODOstyle_sheet>");
-//     if (!response) {
-//         reply_500(nc);
-//         return 1;
-//     }
-
-//     mg_http_reply(nc, 200,
-//                   "Content-Type: text/html; charset=utf-8\r\nSet-Cookie: clio-lang=%s; Path=/; HttpOnly\r\n",
-//                   lang,
-//                   "%.*s",
-//                   (int)strlen(response), response);
-
-
-//     return 1;
-// }
-
 static int handle_set_lang(struct mg_connection *nc,
                            struct mg_http_message *hm) {
 
@@ -231,12 +165,6 @@ static int handle_set_lang(struct mg_connection *nc,
                      "/%s/", lang);
         }
     }
-
-    printf("Lang switch: %s -> %s\n", from, new_location);
-
-    // TODO retirer la langue de l'url de redirection
-
-    printf("[SET_LANG] Redirecting to: %s\n", new_location); // DEBUG toremove
 
 
     // mg_http_reply(nc, 200,
@@ -438,8 +366,8 @@ static char* handle_dynamic(struct mg_connection *nc, struct mg_http_message*hm)
         lang = strdup("fr");
     }
 
-    // TODO : implémenter une vraie détection du media (desktop/mobile) à partir des headers User-Agent, et injecter dans le renderer pour pouvoir faire du rendu conditionnel en fonction du media (ex: afficher un menu hamburger sur mobile, et un menu complet sur desktop)
     char *media = "desktop";
+    warning_prompt("Media detection not implemented, defaulting to 'desktop' for all clients");
 
     if (remove_lang_from_url(url) != 0) {
         printf("Failed to remove language from URL: %s\n", url);
@@ -449,6 +377,7 @@ static char* handle_dynamic(struct mg_connection *nc, struct mg_http_message*hm)
         printf("URL after removing language: %s\n", url);
     }
 
+    warning_prompt("Styles not implemented, using placeholder for style sheet");
     char *response = compose_page(url, NULL, lang, "<TODOstyle_sheet>");
     free(lang);
 

@@ -48,10 +48,13 @@ int init(int argc, char *argv[], app_context_t *ctx) {
 
     ok_prompt("Initializing Clioserv's webserver...");
 
+    warning_prompts("Loading configuration from file is not implemented, using default configuration and command-line arguments only");
     // TODO: load configuration file
 
+    warning_prompt("Command-line arguments parsing is not fully implemented, some options are not yet supported");
     // TODO: parse command-line arguments
 
+    warning_prompt("Asset initialization is not fully implemented");
     // TODO: externaliser la présente commande dans un futur ensemble init
     // if (!init_check_assets()) {
     //     return;

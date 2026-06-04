@@ -1,10 +1,5 @@
-// #include "../../common/dependencies/mongoose/mongoose.h"
-// #include "../../common/src/utils/utils.h"
-// #include "../../common/src/prompts/prompts.h"
-// #include "html_renderer.h"
 #include "init/init.h"
 #include "context.h"
-// #include <string.h>
 #include "server.h"
 
 int main(int argc, char *argv[]) {
