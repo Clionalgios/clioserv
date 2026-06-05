@@ -2,10 +2,7 @@
 #include "../context/context.h"
 #include "../events_handler.h"
 
-uint8_t run_server(app_context_t *ctx) {
-
-    mg_mgr_init(app_context_get_mongoose_manager(ctx));
-
+uint8_t server_start(app_context_t *ctx) {
     char addr[64];
     server_options_t *opt = app_context_get_options(ctx);
 
@@ -20,10 +17,16 @@ uint8_t run_server(app_context_t *ctx) {
         return 1;
 
     ok_prompt("Listening on %s", addr);
+}
 
-    while (app_context_is_running(ctx)) {
+uint8_t server_stop(app_context_t *ctx) {
+    app_context_stop(ctx);
+    return 0;
+}
+
+uint8_t server_running(app_context_t *ctx) {
+    while (app_context_is_running(ctx) && !app_context_get_should_stop(ctx)) {
         mg_mgr_poll(app_context_get_mongoose_manager(ctx), 1000);
     }
-
     return 0;
 }

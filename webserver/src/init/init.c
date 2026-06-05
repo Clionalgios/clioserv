@@ -24,8 +24,23 @@ void set_default_options(app_context_t *ctx) {
 }
 
 int init(int argc, char *argv[], app_context_t *ctx) {
-    printf(CLEAR_SCREEN);
+    // Plan d'après grand-mestre ChatGPT :
+    /* 1. INIT
+        parsing args
+        chargement config
+        initialisation modules
+        ouverture ressources (sockets, fichiers…)
+    */
 
+    // global_ctx = ctx;
+    // signal(SIGINT, handle_signal);
+    // signal(SIGTERM, handle_signal);
+
+    warning_prompt("Signal handlers setup is not implemented, the application may not respond correctly to termination signals");
+    // TODO integrate setup_signal_handlers(ctx); (SIGINT, SIGTERM, etc.)
+
+
+    printf(CLEAR_SCREEN);
     printf(STARTUP_BANNER);
 
     set_default_options(ctx);
@@ -48,7 +63,9 @@ int init(int argc, char *argv[], app_context_t *ctx) {
 
     ok_prompt("Initializing Clioserv's webserver...");
 
-    warning_prompts("Loading configuration from file is not implemented, using default configuration and command-line arguments only");
+    mg_mgr_init(app_context_get_mongoose_manager(ctx));
+
+    warning_prompt("Loading configuration from file is not implemented, using default configuration and command-line arguments only");
     // TODO: load configuration file
 
     warning_prompt("Command-line arguments parsing is not fully implemented, some options are not yet supported");
@@ -56,7 +73,12 @@ int init(int argc, char *argv[], app_context_t *ctx) {
 
     warning_prompt("Asset initialization is not fully implemented");
     // TODO: externaliser la présente commande dans un futur ensemble init
+
+
+
     // if (!init_check_assets()) {
     //     return;
     // }
+
+    ok_prompt("Initialization completed successfully");
 }

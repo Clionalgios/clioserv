@@ -3,6 +3,8 @@
 
 #include "context.h"
 
-uint8_t run_server(app_context_t *ctx);
+uint8_t server_start(app_context_t *ctx);
+uint8_t server_stop(app_context_t *ctx);
+uint8_t server_running(app_context_t *ctx);
 
 #endif /* SERVER_H */
