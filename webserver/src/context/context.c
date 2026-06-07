@@ -35,6 +35,7 @@ struct app_context {
     variables_t *vars;
     struct mg_mgr mgr;
     uint8_t running;
+    app_state_t state;
     volatile sig_atomic_t should_stop;
 };
 
@@ -66,9 +67,20 @@ void handle_signal(int sig) {
     }
 }
 
+app_state_t app_context_get_state(app_context_t *ctx) {
+    return ctx->state;
+}
+
+void app_context_set_state(app_context_t *ctx, app_state_t state) {
+    ctx->state = state;
+}
+
 app_context_t *app_context_create(void) {
     app_context_t *ctx = calloc(1, sizeof(struct app_context));
     if (!ctx) return NULL;
+
+    ctx->state = APP_STATE_INIT;
+
 
     ctx->options = calloc(1, sizeof(struct server_options));
     ctx->vars = calloc(1, sizeof(struct variables));
@@ -199,15 +211,15 @@ uint8_t app_context_set_webserver_config_file(app_context_t *ctx, const char *co
     return safe_strdup(&ctx->options->config_file, config_file);
 }
 
-uint8_t app_context_set_env(app_context_t *ctx, const char *env) {
+int app_context_set_env(app_context_t *ctx, const char *env) {
     return safe_strdup(&ctx->options->env, env);
 }
 
-uint8_t app_context_set_verbosity(app_context_t *ctx, int verbose) {
+int app_context_set_verbosity(app_context_t *ctx, int verbose) {
     return safe_strdup(&ctx->options->verbose, verbose ? 1 : 0);
 }
 
-uint8_t app_context_set_should_stop(app_context_t *ctx, int should_stop) {
+int app_context_set_should_stop(app_context_t *ctx, int should_stop) {
     return safe_strdup(&ctx->should_stop, should_stop ? 1 : 0);
 }
 
