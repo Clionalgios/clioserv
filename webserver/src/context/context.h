@@ -20,8 +20,11 @@ typedef enum {
     APP_STATE_RUNNING,
     APP_STATE_STOPPING,
     APP_STATE_STOPPED,
-    APP_STATE_ERROR
+    APP_STATE_ERROR,
+
+    APP_STATE_COUNT
 } app_state_t;
+
 
 /* Lifecycle */
 app_context_t *app_context_create(void);

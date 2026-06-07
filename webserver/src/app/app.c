@@ -4,6 +4,79 @@
 #include "context.h"
 #include "prompts.h"
 
+static const char *state_str[] = {
+    "INIT",
+    "INITIALIZED",
+    "STARTED",
+    "RUNNING",
+    "STOPPING",
+    "STOPPED",
+    "ERROR"
+};
+
+void print_state(app_context_t *ctx) {
+    app_state_t current = app_context_get_state(ctx);
+    printf("STATE: %s\n", state_str[current]);
+}
+
+static const int state_transitions[APP_STATE_COUNT][APP_STATE_COUNT] = {
+    // FROM ↓ / TO →
+    // INIT
+    [APP_STATE_INIT] = {
+        [APP_STATE_INITIALIZED] = 1,
+        [APP_STATE_ERROR] = 1
+    },
+
+    // INITIALIZED
+    [APP_STATE_INITIALIZED] = {
+        [APP_STATE_STARTED] = 1,
+        [APP_STATE_ERROR] = 1
+    },
+
+    // STARTED
+    [APP_STATE_STARTED] = {
+        [APP_STATE_RUNNING] = 1,
+        [APP_STATE_STOPPING] = 1,
+        [APP_STATE_ERROR] = 1
+    },
+
+    // RUNNING
+    [APP_STATE_RUNNING] = {
+        [APP_STATE_STOPPING] = 1,
+        [APP_STATE_ERROR] = 1
+    },
+
+    // STOPPING
+    [APP_STATE_STOPPING] = {
+        [APP_STATE_STOPPED] = 1
+    },
+
+    // STOPPED
+    [APP_STATE_STOPPED] = {
+        // état terminal
+        [APP_STATE_STOPPED] = 1 //placeholder
+    },
+
+    // ERROR
+    [APP_STATE_ERROR] = {
+        [APP_STATE_STOPPING] = 1
+    }
+};
+
+static int app_transition(app_context_t *ctx, app_state_t next) {
+    app_state_t current = app_context_get_state(ctx);
+
+    if (!state_transitions[current][next]) {
+        error_prompt("Invalid state transition");
+        app_context_set_state(ctx, APP_STATE_ERROR);
+        return -1;
+    }
+
+    app_context_set_state(ctx, next);
+    return 0;
+}
+
+
 static int app_set_state(app_context_t *ctx, app_state_t expected, app_state_t next) {
     if (app_context_get_state(ctx) != expected) {
         error_prompt("Invalid state transition");
@@ -16,7 +89,7 @@ static int app_set_state(app_context_t *ctx, app_state_t expected, app_state_t n
 }
 
 int app_init(app_context_t *ctx, int argc, char **argv) {
-    if (app_set_state(ctx, APP_STATE_INIT, APP_STATE_INITIALIZED) != 0)
+    if (app_transition(ctx, APP_STATE_INITIALIZED) != 0)
         return -1;
 
     if (init(argc, argv, ctx) != 0) {
@@ -28,7 +101,7 @@ int app_init(app_context_t *ctx, int argc, char **argv) {
 }
 
 int app_start(app_context_t *ctx) {
-    if (app_set_state(ctx, APP_STATE_INITIALIZED, APP_STATE_STARTED) != 0)
+    if (app_transition(ctx, APP_STATE_STARTED) != 0)
         return -1;
 
     if (server_start(ctx) != 0) {
@@ -40,7 +113,7 @@ int app_start(app_context_t *ctx) {
 }
 
 int app_run_loop(app_context_t *ctx) {
-    if (app_set_state(ctx, APP_STATE_STARTED, APP_STATE_RUNNING) != 0)
+    if (app_transition(ctx, APP_STATE_RUNNING) != 0)
         return -1;
 
     int rc = server_running(ctx);
@@ -52,6 +125,7 @@ int app_run_loop(app_context_t *ctx) {
 
     return 0;
 }
+
 
 
 void app_shutdown(app_context_t *ctx) {
@@ -66,12 +140,13 @@ void app_shutdown(app_context_t *ctx) {
 
     app_state_t state = app_context_get_state(ctx);
 
-    if (state == APP_STATE_STARTED || state == APP_STATE_RUNNING) {
-        app_context_set_state(ctx, APP_STATE_STOPPING);
+    if (state == APP_STATE_STARTED || state == APP_STATE_RUNNING || state == APP_STATE_ERROR) {
+        if (app_transition(ctx, APP_STATE_STOPPING) != 0)
+            return;
 
         server_stop(ctx);
 
-        app_context_set_state(ctx, APP_STATE_STOPPED);
+        app_transition(ctx, APP_STATE_STOPPED);
     }
 }
 
