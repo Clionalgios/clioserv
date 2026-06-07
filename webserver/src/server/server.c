@@ -1,4 +1,5 @@
 #include "server.h"
+#include "app.h"
 #include "../context/context.h"
 #include "../events_handler.h"
 
@@ -27,6 +28,9 @@ uint8_t server_stop(app_context_t *ctx) {
 uint8_t server_running(app_context_t *ctx) {
     while (app_context_is_running(ctx) && !app_context_get_should_stop(ctx)) {
         mg_mgr_poll(app_context_get_mongoose_manager(ctx), 1000);
+
+        app_dispatch(ctx, APP_EVENT_TICK);
     }
+
     return 0;
 }

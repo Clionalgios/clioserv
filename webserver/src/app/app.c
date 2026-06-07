@@ -1,8 +1,22 @@
 #include "app.h"
 #include "init.h"
 #include "server.h"
-#include "context.h"
 #include "prompts.h"
+
+static int action_http_request(app_context_t *ctx) {
+    app_http_event_t *ev = app_context_get_http_event(ctx);
+
+    if (!ev || !ev->nc || !ev->hm)
+        return -1;
+
+    router_dispatch(ev->nc, ev->hm, ctx);
+
+    return 0;
+}
+
+/* ======================
+   DEBUG
+   ====================== */
 
 static const char *state_str[] = {
     "INIT",
@@ -14,169 +28,134 @@ static const char *state_str[] = {
     "ERROR"
 };
 
-void print_state(app_context_t *ctx) {
-    app_state_t current = app_context_get_state(ctx);
-    printf("STATE: %s\n", state_str[current]);
-}
+/* ======================
+   FSM TYPES
+   ====================== */
 
-static const int state_transitions[APP_STATE_COUNT][APP_STATE_COUNT] = {
-    // FROM ↓ / TO →
-    // INIT
+typedef struct {
+    app_state_t next;
+    int (*action)(app_context_t *ctx);
+} fsm_transition_t;
+
+/* ======================
+   ACTIONS
+   ====================== */
+
+static int action_init(app_context_t *ctx);
+static int action_start(app_context_t *ctx);
+static int action_run(app_context_t *ctx);
+static int action_stop(app_context_t *ctx);
+static int action_fail(app_context_t *ctx);
+
+// ======================
+//  FSM TABLE
+// ======================
+
+/* FSM : Finite State Machine */
+static const fsm_transition_t fsm[APP_STATE_COUNT][APP_EVENT_COUNT] = {
     [APP_STATE_INIT] = {
-        [APP_STATE_INITIALIZED] = 1,
-        [APP_STATE_ERROR] = 1
+        [APP_EVENT_INIT]  = {APP_STATE_INITIALIZED, action_init},
+        [APP_EVENT_FAIL]  = {APP_STATE_ERROR, action_fail}
     },
 
-    // INITIALIZED
     [APP_STATE_INITIALIZED] = {
-        [APP_STATE_STARTED] = 1,
-        [APP_STATE_ERROR] = 1
+        [APP_EVENT_START] = {APP_STATE_STARTED, action_start},
+        [APP_EVENT_FAIL]  = {APP_STATE_ERROR, action_fail}
     },
 
-    // STARTED
     [APP_STATE_STARTED] = {
-        [APP_STATE_RUNNING] = 1,
-        [APP_STATE_STOPPING] = 1,
-        [APP_STATE_ERROR] = 1
+        [APP_EVENT_RUN]  = {APP_STATE_RUNNING, action_run},
+        [APP_EVENT_STOP] = {APP_STATE_STOPPING, action_stop},
+        [APP_EVENT_FAIL] = {APP_STATE_ERROR, action_fail}
     },
 
-    // RUNNING
     [APP_STATE_RUNNING] = {
-        [APP_STATE_STOPPING] = 1,
-        [APP_STATE_ERROR] = 1
+        [APP_EVENT_HTTP_REQUEST] = {APP_STATE_RUNNING, action_http_request},
+        [APP_EVENT_TICK] = {APP_STATE_RUNNING, NULL},
+        [APP_EVENT_STOP] = {APP_STATE_STOPPING, action_stop},
+        [APP_EVENT_FAIL] = {APP_STATE_ERROR, action_fail}
     },
 
-    // STOPPING
+
     [APP_STATE_STOPPING] = {
-        [APP_STATE_STOPPED] = 1
+        [APP_EVENT_STOP] = {APP_STATE_STOPPED, NULL}
     },
 
-    // STOPPED
-    [APP_STATE_STOPPED] = {
-        // état terminal
-        [APP_STATE_STOPPED] = 1 //placeholder
-    },
-
-    // ERROR
     [APP_STATE_ERROR] = {
-        [APP_STATE_STOPPING] = 1
+        [APP_EVENT_STOP] = {APP_STATE_STOPPING, action_stop}
     }
 };
 
-static int app_transition(app_context_t *ctx, app_state_t next) {
+/* ======================
+   DISPATCHER
+   ====================== */
+
+static int app_dispatch(app_context_t *ctx, app_event_t event) {
     app_state_t current = app_context_get_state(ctx);
+    fsm_transition_t t = fsm[current][event];
 
-    if (!state_transitions[current][next]) {
-        error_prompt("Invalid state transition");
+    if (t.next == 0 && t.action == NULL) {
+        error_prompt("Invalid event for current state");
+        return -1;
+    }
+
+    if (t.action && t.action(ctx) != 0) {
         app_context_set_state(ctx, APP_STATE_ERROR);
         return -1;
     }
 
-    app_context_set_state(ctx, next);
-    return 0;
-}
-
-
-static int app_set_state(app_context_t *ctx, app_state_t expected, app_state_t next) {
-    if (app_context_get_state(ctx) != expected) {
-        error_prompt("Invalid state transition");
-        app_context_set_state(ctx, APP_STATE_ERROR);
-        return -1;
-    }
-
-    app_context_set_state(ctx, next);
-    return 0;
-}
-
-int app_init(app_context_t *ctx, int argc, char **argv) {
-    if (app_transition(ctx, APP_STATE_INITIALIZED) != 0)
-        return -1;
-
-    if (init(argc, argv, ctx) != 0) {
-        app_context_set_state(ctx, APP_STATE_ERROR);
-        return -1;
-    }
+    app_context_set_state(ctx, t.next);
 
     return 0;
 }
 
-int app_start(app_context_t *ctx) {
-    if (app_transition(ctx, APP_STATE_STARTED) != 0)
-        return -1;
+/* ======================
+   ACTIONS IMPL
+   ====================== */
 
-    if (server_start(ctx) != 0) {
-        app_context_set_state(ctx, APP_STATE_ERROR);
-        return -1;
-    }
+static int action_init(app_context_t *ctx) {
+    return init(0, NULL, ctx); // TODO: passer argc/argv proprement
+}
 
+static int action_start(app_context_t *ctx) {
+    return server_start(ctx);
+}
+
+static int action_run(app_context_t *ctx) {
+    return server_running(ctx);
+}
+
+static int action_stop(app_context_t *ctx) {
+    server_stop(ctx);
     return 0;
 }
 
-int app_run_loop(app_context_t *ctx) {
-    if (app_transition(ctx, APP_STATE_RUNNING) != 0)
-        return -1;
-
-    int rc = server_running(ctx);
-
-    if (rc != 0) {
-        app_context_set_state(ctx, APP_STATE_ERROR);
-        return rc;
-    }
-
-    return 0;
+static int action_fail(app_context_t *ctx) {
+    return -1;
 }
 
-
-
-void app_shutdown(app_context_t *ctx) {
-    // Plan d'après ChatGPT :
-    /* 3. SHUTDOWN
-        fermeture sockets
-        flush logs
-        libération mémoire
-    */
-   
-    if (!ctx) return;
-
-    app_state_t state = app_context_get_state(ctx);
-
-    if (state == APP_STATE_STARTED || state == APP_STATE_RUNNING || state == APP_STATE_ERROR) {
-        if (app_transition(ctx, APP_STATE_STOPPING) != 0)
-            return;
-
-        server_stop(ctx);
-
-        app_transition(ctx, APP_STATE_STOPPED);
-    }
-}
+/* ======================
+   ENTRYPOINT
+   ====================== */
 
 int app_run(int argc, char **argv) {
-    // Plan
-    /* 2. RUN
-        boucle principale (serveur HTTP)
-        traitement des requêtes
-        gestion signaux (flag stop)
-    */
-
-    int exit_code = 1;
-    app_context_t *ctx = NULL;
-
-    ctx = app_context_create();
+    app_context_t *ctx = app_context_create();
     if (!ctx) {
         error_prompt("Failed to create context");
         return 1;
     }
 
-    if (app_init(ctx, argc, argv) != 0)
+    if (app_dispatch(ctx, APP_EVENT_INIT) != 0)
         goto cleanup;
 
-    if (app_start(ctx) != 0)
+    if (app_dispatch(ctx, APP_EVENT_START) != 0)
         goto cleanup;
 
-    exit_code = app_run_loop(ctx);
+    if (app_dispatch(ctx, APP_EVENT_RUN) != 0)
+        goto cleanup;
 
 cleanup:
-    app_shutdown(ctx);
+    app_dispatch(ctx, APP_EVENT_STOP);
     app_context_destroy(ctx);
-    return exit_code;
+    return 0;
 }

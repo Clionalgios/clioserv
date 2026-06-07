@@ -2,6 +2,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "events_handler.h" 
+#include "context.h"
+#include "app.h"
 #include <mongoose.h>
 
 /*
@@ -42,5 +44,13 @@ void events_handler(struct mg_connection *nc, int ev, void *ev_data) {
         return;  // ✅ PAS return 1
     }
 
-    router_dispatch(nc, hm, ctx);
+    app_http_event_t app_ev = {
+        .nc = nc,
+        .hm = hm
+    };
+
+    app_context_set_http_event(ctx, &app_ev);
+
+    app_dispatch(ctx, APP_EVENT_HTTP_REQUEST);
+
 }

@@ -30,6 +30,8 @@ struct server_options {
     char *env;
 };
 
+app_http_event_t current_http_event;
+
 struct app_context {
     server_options_t *options;
     variables_t *vars;
@@ -186,6 +188,11 @@ const char *app_context_get_router_port(app_context_t *ctx) {
     return ctx->options->router_port;
 }
 
+const char *app_context_get_http_event(app_context_t *ctx) {
+    (void)ctx;
+    return &current_http_event;
+}
+
 int app_context_get_should_stop(app_context_t *ctx) {
     return ctx->should_stop;
 }
@@ -221,6 +228,14 @@ int app_context_set_verbosity(app_context_t *ctx, int verbose) {
 
 int app_context_set_should_stop(app_context_t *ctx, int should_stop) {
     return safe_strdup(&ctx->should_stop, should_stop ? 1 : 0);
+}
+
+int app_context_set_http_event(app_context_t *ctx, app_http_event_t *ev) {
+    (void)ctx;
+    if (!ev) return -1;
+
+    current_http_event = *ev;
+    return 0;
 }
 
 // ================

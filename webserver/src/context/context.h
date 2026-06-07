@@ -58,6 +58,14 @@ int app_context_set_verbosity(app_context_t *ctx, int verbose);
 int app_context_set_env(app_context_t *ctx, const char *env);
 int app_context_set_should_stop(app_context_t *ctx, int should_stop);
 
+typedef struct {
+    struct mg_connection *nc;
+    struct mg_http_message *hm;
+} app_http_event_t;
+
+void app_context_set_http_event(app_context_t *ctx, app_http_event_t *ev);
+app_http_event_t *app_context_get_http_event(app_context_t *ctx);
+
 /* Server state */
 int app_context_is_running(app_context_t *ctx);
 void app_context_stop(app_context_t *ctx);
