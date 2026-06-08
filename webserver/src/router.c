@@ -388,25 +388,33 @@ static char* handle_dynamic(struct mg_connection *nc, struct mg_http_message*hm)
     return response;
 }
 
-void router_dispatch(struct mg_connection *nc,
+int http_handle_request(struct mg_connection *nc,
                      struct mg_http_message *hm, app_context_t *ctx) {
 
     debug_prompt("Method: %.*s", (int)hm->method.len, hm->method.buf);
     // printf("[DEBUG] Method: %.*s\n", (int)hm->method.len, hm->method.buf);
 
+    if (mg_strcmp(hm->method, mg_str("GET")) != 0) {
+        mg_http_reply(nc, 405,
+                    "Content-Type: text/plain\r\n",
+                    "Method Not Allowed\n");
+        return -1;
+    }
+
+
     printf("[ROUTER] Incoming request: %.*s\n", // DEBUG toremove
        (int)hm->uri.len, hm->uri.buf); // DEBUG toremove
 
 
-    if (handle_favicon(nc, hm)) return;
+    if (handle_favicon(nc, hm)) return 0;
 
-    if (handle_set_lang(nc, hm)) return;
+    if (handle_set_lang(nc, hm)) return 0;
 
-    if (handle_lang_without_slash(nc, hm)) return;
+    if (handle_lang_without_slash(nc, hm)) return 0;
 
-    if (handle_root_language_redirect(nc, hm)) return;
+    if (handle_root_language_redirect(nc, hm)) return 0;
 
-    if (handle_missing_lang(nc, hm)) return;
+    if (handle_missing_lang(nc, hm)) return 0;
 
 
     char* content = NULL;
@@ -416,7 +424,6 @@ void router_dispatch(struct mg_connection *nc,
         content = handle_dynamic(nc, hm);
         if (content == NULL) {
             reply_500(nc);
-            return;
         }
     }
 
@@ -436,7 +443,7 @@ void router_dispatch(struct mg_connection *nc,
     if (!headers) {
         free(content);
         reply_500(nc);
-        return;
+        return 1;
     }
 
     // Charge la bannière dans le header [LG]
@@ -452,4 +459,6 @@ void router_dispatch(struct mg_connection *nc,
 
     free(content);
     free(headers);
+
+    return 0;
 }

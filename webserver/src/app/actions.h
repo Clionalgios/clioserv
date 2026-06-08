@@ -2,6 +2,7 @@
 #define ACTIONS_H
 
 #include "app.h"
+#include "context.h"
 
 int action_init(app_context_t *ctx);
 int action_start(app_context_t *ctx);

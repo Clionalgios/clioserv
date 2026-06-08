@@ -4,7 +4,7 @@
 #include "mongoose.h"
 #include "context.h"
 
-void router_dispatch(struct mg_connection *nc,
+int http_handle_request(struct mg_connection *nc,
                      struct mg_http_message *hm, app_context_t *ctx);
 
 int remove_lang_from_url(char *url);

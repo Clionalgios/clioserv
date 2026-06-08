@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include "events_handler.h" 
 #include "context.h"
+#include "app_types.h"
+#include "fsm.h"
 #include "app.h"
 #include <mongoose.h>
 
@@ -30,27 +32,25 @@ int match_uri(struct mg_str *uri, const char *pattern) {
 }
 
 
-void events_handler(struct mg_connection *nc, int ev, void *ev_data) {
-    if (ev != MG_EV_HTTP_MSG) return;
+void events_handler(struct mg_connection *c, int ev, void *ev_data) {
+    app_context_t *ctx = (struct app_context_t *) c->fn_data;
 
-    app_context_t *ctx = (app_context_t *) nc->fn_data;
+    switch (ev) {
+        case MG_EV_HTTP_MSG: {
+            struct mg_http_message *hm = (struct mg_http_message *) ev_data;
 
-    struct mg_http_message *hm = (struct mg_http_message *) ev_data;
+            app_http_event_t http_ev = {
+                .nc = c,
+                .hm = hm
+            };
 
-    if (mg_strcmp(hm->method, mg_str("GET")) != 0) {
-        mg_http_reply(nc, 405,
-                      "Content-Type: text/plain\r\n",
-                      "Method Not Allowed\n");
-        return;  // ✅ PAS return 1
+            app_context_set_http_event(ctx, &http_ev);
+            app_dispatch(ctx, APP_EVENT_HTTP_REQUEST);
+            break;
+        }
+
+        default:
+            // ✅ NE RIEN FAIRE
+            break;
     }
-
-    app_http_event_t app_ev = {
-        .nc = nc,
-        .hm = hm
-    };
-
-    app_context_set_http_event(ctx, &app_ev);
-
-    app_dispatch(ctx, APP_EVENT_HTTP_REQUEST);
-
 }

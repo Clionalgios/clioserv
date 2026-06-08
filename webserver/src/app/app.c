@@ -3,6 +3,10 @@
 #include "context.h"
 #include "prompts.h"
 
+int app_dispatch(app_context_t *ctx, app_event_t event) {
+    return fsm_handle_event(ctx, event);
+}
+
 int app_run(int argc, char **argv) {
     app_context_t *ctx = app_context_create();
     if (!ctx) {
@@ -10,17 +14,26 @@ int app_run(int argc, char **argv) {
         return 1;
     }
 
-    if (fsm_handle_event(ctx, APP_EVENT_INIT) != 0)
+    /* stocker argc/argv dans le context */
+    app_context_set_argc(ctx, argc);
+    app_context_set_argv(ctx, argv);
+
+    
+
+    if (app_dispatch(ctx, APP_EVENT_INIT) != 0)
         goto cleanup;
 
-    if (fsm_handle_event(ctx, APP_EVENT_START) != 0)
+    if (app_dispatch(ctx, APP_EVENT_START) != 0)
         goto cleanup;
 
-    if (fsm_handle_event(ctx, APP_EVENT_RUN) != 0)
+    if (app_dispatch(ctx, APP_EVENT_RUN) != 0)
         goto cleanup;
+
+    server_running(ctx);
 
 cleanup:
-    fsm_handle_event(ctx, APP_EVENT_STOP);
+    app_dispatch(ctx, APP_EVENT_STOP);
     app_context_destroy(ctx);
     return 0;
 }
+
