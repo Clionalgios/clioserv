@@ -3,7 +3,7 @@
 #include "context.h"
 #include "prompts.h"
 
-int app_dispatch(app_context_t *ctx, app_event_t event) {
+int app_step(app_context_t *ctx, app_event_t event) {
     return fsm_handle_event(ctx, event);
 }
 
@@ -20,19 +20,16 @@ int app_run(int argc, char **argv) {
 
     
 
-    if (app_dispatch(ctx, APP_EVENT_INIT) != 0)
+    if (app_step(ctx, APP_EVENT_INIT) != 0)
         goto cleanup;
 
-    if (app_dispatch(ctx, APP_EVENT_START) != 0)
-        goto cleanup;
-
-    if (app_dispatch(ctx, APP_EVENT_RUN) != 0)
+    if (app_step(ctx, APP_EVENT_START) != 0)
         goto cleanup;
 
     server_running(ctx);
 
 cleanup:
-    app_dispatch(ctx, APP_EVENT_STOP);
+    app_step(ctx, APP_EVENT_STOP);
     app_context_destroy(ctx);
     return 0;
 }

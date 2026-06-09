@@ -16,14 +16,8 @@ static const fsm_transition_t fsm[APP_STATE_COUNT][APP_EVENT_COUNT] = {
     },
 
     [APP_STATE_INITIALIZED] = {
-        [APP_EVENT_START] = {APP_STATE_STARTED, action_start, 1},
+        [APP_EVENT_START] = {APP_STATE_RUNNING, action_start, 1},
         [APP_EVENT_FAIL]  = {APP_STATE_ERROR, action_fail, 1}
-    },
-
-    [APP_STATE_STARTED] = {
-        [APP_EVENT_RUN]  = {APP_STATE_RUNNING, NULL, 1},
-        [APP_EVENT_STOP] = {APP_STATE_STOPPING, action_stop, 1},
-        [APP_EVENT_FAIL] = {APP_STATE_ERROR, action_fail, 1}
     },
 
     [APP_STATE_RUNNING] = {

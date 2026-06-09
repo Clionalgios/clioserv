@@ -22,10 +22,6 @@ int action_start(app_context_t *ctx) {
     return server_start(ctx);
 }
 
-int action_run(app_context_t *ctx) {
-    return server_running(ctx);
-}
-
 int action_stop(app_context_t *ctx) {
     server_stop(ctx);
     return 0;
