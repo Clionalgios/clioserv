@@ -3,6 +3,7 @@
 
 #include "app.h"
 #include "context.h"
+#include "events.h"
 
 int action_init(app_context_t *ctx, app_event_data_t *event);
 int action_start(app_context_t *ctx, app_event_data_t *event);

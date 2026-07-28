@@ -30,8 +30,6 @@ typedef struct app_context {
 typedef struct server_options server_options_t;
 typedef struct variables variables_t;
 
-
-
 /* ======================
    LIFECYCLE
    ====================== */

@@ -2,6 +2,7 @@
 #define EVENTS_H
 
 #include "mongoose.h"
+#include "app_types.h"
 
 // typedef struct {
 //     struct mg_connection *conn;

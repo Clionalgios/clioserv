@@ -3,6 +3,7 @@
 
 #include "context.h"
 #include "app_types.h"
+#include "events.h"
 
 int fsm_handle_event(app_context_t *ctx, app_event_data_t *event);
 

@@ -47,8 +47,8 @@ void events_handler(struct mg_connection *c, int ev, void *ev_data) {
             app_event_data_t event = {
                 .type = APP_EVENT_HTTP_REQUEST,
                 .data.http = {
-                    .conn = c,
-                    .req = hm
+                    .nc = c,
+                    .hm = hm
                 }
             };
 
