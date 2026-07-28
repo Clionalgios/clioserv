@@ -1,13 +1,20 @@
 #ifndef APP_TYPES_H
 #define APP_TYPES_H
 
-struct mg_connection;
-struct mg_http_message;
+/* ======================
+   EVENTS
+   ====================== */
 
-typedef struct app_http_event {
-    struct mg_connection *nc;
-    struct mg_http_message *hm;
-} app_http_event_t;
+typedef enum {
+    APP_EVENT_INIT = 0,
+    APP_EVENT_START,
+    APP_EVENT_RUN,
+    APP_EVENT_HTTP_REQUEST,
+    APP_EVENT_TICK,
+    APP_EVENT_STOP,
+    APP_EVENT_FAIL,
+    APP_EVENT_COUNT
+} app_event_t;
 
 /* ======================
    STATES

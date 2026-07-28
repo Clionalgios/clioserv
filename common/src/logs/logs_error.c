@@ -1,4 +1,5 @@
 #include "logs_internal.h"
+#include <stdlib.h>
 
 static const int exit_codes[] = {0, 1, 2, 3, 4, 5};
 

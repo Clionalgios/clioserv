@@ -7,6 +7,7 @@
 // #include "ip_checks.h"
 #include "args_parsing.h"
 #include "init.h"
+#include "config.h"
 
 void print_help(const char *prog) {
     printf("Usage: %s [OPTIONS]\n", prog);
@@ -37,7 +38,7 @@ int parse_arguments(int argc, char *argv[], app_context_t *ctx) {
         switch (c) {
 
             case 'c':
-                app_context_set_webserver_config_file(ctx, optarg);
+                app_config_set_file(app_context_get_config(ctx), optarg);
                 break;
 
             case 'i':
@@ -61,7 +62,7 @@ int parse_arguments(int argc, char *argv[], app_context_t *ctx) {
                 break;
 
             case 'v':
-                app_context_set_verbosity(ctx, 1);
+                app_config_set_verbosity(ctx, 1);
                 break;
 
             case 'h':

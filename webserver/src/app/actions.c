@@ -1,33 +1,33 @@
 #include "actions.h"
 #include "init.h"
 #include "server.h"
-#include "../router.h" // TODO : renommer en http_handler
+// #include "../router.h" // TODO : renommer en http_handler
 #include "context.h"
 #include "app_types.h"
+#include "events.h"
 
 /* ======================
    CORE ACTIONS
    ====================== */
 
-int action_init(app_context_t *ctx) {
+int action_init(app_context_t *app_app_ctx, app_event_data_t *event) {
     return init(
-        app_context_get_argc(ctx),
-        app_context_get_argv(ctx),
-        ctx
+        app_context_get_argc(app_app_ctx),
+        app_context_get_argv(app_app_ctx),
+        app_app_ctx
     );
 }
 
-
-int action_start(app_context_t *ctx) {
-    return server_start(ctx);
+int action_start(app_context_t *app_ctx, app_event_data_t *event) {
+    return server_start(app_ctx);
 }
 
-int action_stop(app_context_t *ctx) {
-    server_stop(ctx);
+int action_stop(app_context_t *app_ctx, app_event_data_t *event) {
+    server_stop(app_ctx);
     return 0;
 }
 
-int action_fail(app_context_t *ctx) {
+int action_fail(app_context_t *app_ctx, app_event_data_t *event) {
     return -1;
 }
 
@@ -35,12 +35,15 @@ int action_fail(app_context_t *ctx) {
    HTTP
    ====================== */
 
-int handle_http_request(app_context_t *ctx) {
-    app_http_event_t *ev = app_context_get_http_event(ctx);
+int handle_http_request(app_context_t *app_ctx, app_event_data_t *event) {
+    if (!event) {
+        return -1;
+    }
 
-    if (!ev || !ev->nc || !ev->hm)
+    app_http_event_t *ev = &event->data.http;
+
+    if (!&ev->nc || !&ev->hm)
         return -1;
 
-    return http_handle_request((struct mg_connection *)ev->nc,
-                               (struct mg_http_message *)ev->hm, ctx);
+    return http_handle_request(ev->nc, ev->hm, app_ctx);
 }

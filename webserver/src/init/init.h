@@ -16,6 +16,7 @@ typedef enum {
 init_status_t init_check_assets(void);
 init_status_t init_check_config(void);
 
+int set_default_options(app_context_t *ctx);
 int init(int argc, char *argv[], app_context_t *ctx);
 
 #endif /* INIT_H */

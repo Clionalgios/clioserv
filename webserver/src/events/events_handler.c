@@ -1,12 +1,17 @@
 #include <string.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "events.h"
 #include "events_handler.h" 
 #include "context.h"
 #include "app_types.h"
 #include "fsm.h"
 #include "app.h"
 #include <mongoose.h>
+
+// /* ======================
+//    HTTP EVENT
+//    ====================== */
 
 /*
  * match_uri(buf, pattern)
@@ -33,24 +38,29 @@ int match_uri(struct mg_str *uri, const char *pattern) {
 
 
 void events_handler(struct mg_connection *c, int ev, void *ev_data) {
-    app_context_t *ctx = (struct app_context_t *) c->fn_data;
+    app_context_t *ctx = (app_context_t *) c->fn_data;
 
     switch (ev) {
         case MG_EV_HTTP_MSG: {
             struct mg_http_message *hm = (struct mg_http_message *) ev_data;
 
-            app_http_event_t http_ev = {
-                .nc = c,
-                .hm = hm
+            app_event_data_t event = {
+                .type = APP_EVENT_HTTP_REQUEST,
+                .data.http = {
+                    .conn = c,
+                    .req = hm
+                }
             };
 
-            app_context_set_http_event(ctx, &http_ev);
-            app_dispatch(ctx, APP_EVENT_HTTP_REQUEST);
+            fprintf(stderr, "state=%d event=%d\n",
+                app_context_get_state(ctx),
+                event.type);
+            
+            app_step(ctx, &event);
             break;
         }
 
         default:
-            // ✅ NE RIEN FAIRE
             break;
     }
 }

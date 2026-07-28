@@ -2,10 +2,11 @@
 #include "actions.h"
 #include "context.h"
 #include "prompts.h"
+#include "events.h"
 
 typedef struct {
     app_state_t next;
-    int (*action)(app_context_t *ctx);
+    int (*action)(app_context_t *app_ctx, void *event_data);
     int valid;
 } fsm_transition_t;
 
@@ -36,16 +37,18 @@ static const fsm_transition_t fsm[APP_STATE_COUNT][APP_EVENT_COUNT] = {
     }
 };
 
-int fsm_handle_event(app_context_t *ctx, app_event_t event) {
+int fsm_handle_event(app_context_t *ctx, app_event_data_t *event) {
     app_state_t current = app_context_get_state(ctx);
-    fsm_transition_t t = fsm[current][event];
+    app_event_t type = event->type;
+
+    fsm_transition_t t = fsm[current][type];
 
     if (!t.valid) {
         error_prompt("Invalid event for current state");
         return -1;
     }
 
-    if (t.action && t.action(ctx) != 0) {
+    if (t.action && t.action(ctx, event) != 0) {
         app_context_set_state(ctx, APP_STATE_ERROR);
         return -1;
     }

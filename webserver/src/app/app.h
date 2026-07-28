@@ -4,9 +4,8 @@
 #include "fsm.h"
 #include "context.h"
 
-int app_run(int argc, char **argv);
+int app_run_lifecycle(int argc, char **argv);
 
-/* DISPATCH CENTRAL */
-int app_step(app_context_t *ctx, app_event_t event);
+int app_step(app_context_t *ctx, app_event_data_t *event);
 
 #endif

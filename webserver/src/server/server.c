@@ -1,8 +1,9 @@
 #include "server.h"
 #include "app.h"
 #include "fsm.h"
+#include "events.h"
 #include "../context/context.h"
-#include "../events_handler.h"
+#include "../events/events_handler.h"
 
 uint8_t server_start(app_context_t *ctx) {
     char addr[64];
@@ -32,7 +33,12 @@ uint8_t server_running(app_context_t *ctx) {
     while (!app_context_get_should_stop(ctx)) {
         mg_mgr_poll(app_context_get_mongoose_manager(ctx), 1000);
 
-        app_dispatch(ctx, APP_EVENT_TICK);
+        app_event_data_t ev = {
+            .type = APP_EVENT_TICK,
+            .data = NULL
+        };
+
+        app_step(ctx, &ev);
     }
 
 

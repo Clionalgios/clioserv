@@ -264,3 +264,18 @@ void get_cookie_value(struct mg_http_message *hm, char *cookie_name, char **cook
     free(cookies);
     *cookie_value = NULL;
 }
+
+/* ======================
+   UTILS
+   ====================== */
+
+int safe_strdup(char **dst, const char *src) {
+    if (!src) return 0;
+
+    char *copy = strdup(src);
+    if (!copy) return -1;
+
+    free(*dst);
+    *dst = copy;
+    return 0;
+}

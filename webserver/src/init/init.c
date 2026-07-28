@@ -5,22 +5,40 @@
 #include "init.h"
 #include "logs.h"
 #include "context.h"
+#include "config.h"
 
 #define CLEAR_SCREEN "\x1B[2J\x1B[H"
 #define STARTUP_BANNER ""
 
-void set_default_options(app_context_t *ctx) {
-    if (!ctx) {
-        fprintf(stderr, "ctx is NULL\n");
-        exit(1);
+int set_default_options(app_context_t *ctx)
+{
+    if (!ctx || !ctx->config) {
+        fprintf(stderr, "Invalid context or configuration\n");
+        return -1;
     }
 
-    app_context_set_webserver_config_file(ctx, "./config/webserver.conf");
-    app_context_set_webserver_ip(ctx, "127.0.0.1");
+    if (app_config_set_file(ctx->config,
+                            "./config/webserver.conf") != 0) {
+        return -1;
+    }
 
-    app_context_set_webserver_port(ctx, "8181");
-    app_context_set_verbosity(ctx, 0);
-    app_context_set_env(ctx, "dev");
+    if (app_config_set_verbosity(ctx->config, 0) != 0) {
+        return -1;
+    }
+
+    if (app_context_set_webserver_ip(ctx, "127.0.0.1") != 0) {
+        return -1;
+    }
+
+    if (app_context_set_webserver_port(ctx, "8181") != 0) {
+        return -1;
+    }
+
+    if (app_context_set_env(ctx, "dev") != 0) {
+        return -1;
+    }
+
+    return 0;
 }
 
 int init(int argc, char *argv[], app_context_t *ctx) {
@@ -43,7 +61,10 @@ int init(int argc, char *argv[], app_context_t *ctx) {
     printf(CLEAR_SCREEN);
     printf(STARTUP_BANNER);
 
-    set_default_options(ctx);
+    if (set_default_options(ctx) != 0) {
+        fprintf(stderr, "Failed to set default options\n");
+        return -1;
+    }
 
     // TODO : load configuration
     // load_configuration(&options.config_file)
@@ -51,15 +72,17 @@ int init(int argc, char *argv[], app_context_t *ctx) {
     if (parse_arguments(argc, argv, ctx) != 0) {
         fprintf(stderr, "Failed to parse arguments\n");
         exit(1);
+    } else {
+        
     }
 
     // TODO: reset logs files
-    init_logs_status_t status = init_logs(argv[0]);
+    init_logs_status_t status = init_logs(ctx->argv[0]);
     if (status != INIT_LOGS_OK) {
         init_logs_failure(status);
+    } else {
+        ok_prompt("Logs initialized successfully");
     }
-
-    ok_prompt("Logs initialized successfully");
 
     ok_prompt("Initializing Clioserv's webserver...");
 
